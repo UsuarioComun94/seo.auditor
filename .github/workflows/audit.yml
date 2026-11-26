@@ -7,9 +7,12 @@ on:
         description: "Nombre del archivo en clients/ (sin .yaml)"
         required: true
         default: fixture
+      publish:
+        description: "Publicar a Google Sheets y Drive"
+        type: boolean
+        default: true
   schedule:
-    # Semanal, lunes 09:00 UTC. Corre solo sobre el fixture hasta que haya
-    # configs de clientes en un repo privado o en secrets.
+    # Semanal, lunes 09:00 UTC. Corre sobre el fixture hasta que haya configs de clientes.
     - cron: "0 9 * * 1"
   push:
     branches: [main]
@@ -17,11 +20,17 @@ on:
       - "src/**"
       - "tests/**"
       - "rules/**"
+      - "schema/**"
       - "clients/**"
       - "fixture/**"
+      - ".github/workflows/audit.yml"
 
 permissions:
   contents: read
+
+concurrency:
+  group: audit-${{ github.event.inputs.client || 'fixture' }}
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -42,6 +51,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLIENT: ${{ github.event.inputs.client || 'fixture' }}
+      # En push solo se valida; se publica en cron o ejecución manual con publish=true.
+      DO_PUBLISH: ${{ github.event_name == 'schedule' || github.event.inputs.publish == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -56,7 +67,20 @@ jobs:
             echo "Nombre de cliente inválido: solo letras, números, guion y guion bajo"
             exit 1
           fi
-      - name: Validar config
-        run: python -m seo_auditor --config "clients/${CLIENT}.yaml" --validate-only
-      # Fase 1: acá se ejecuta el crawler y se publica a Sheets y Drive.
-      # Las credenciales irán en GitHub Secrets (GOOGLE_SERVICE_ACCOUNT_JSON), nunca en el repo.
+      - name: Auditar
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          ARGS=(--config "clients/${CLIENT}.yaml" --output-dir output --quiet)
+          # El fixture tiene errores plantados: el recall debe ser 100%
+          if [ "$CLIENT" = "fixture" ]; then ARGS+=(--expected fixture/EXPECTED_ISSUES.yaml); fi
+          if [ "$DO_PUBLISH" = "true" ]; then ARGS+=(--publish); fi
+          python -m seo_auditor "${ARGS[@]}"
+      - name: Guardar CSV completos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crawl-${{ env.CLIENT }}
+          path: output/
+          retention-days: 30
+          if-no-files-found: ignore

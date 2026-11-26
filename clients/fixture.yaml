@@ -16,6 +16,7 @@ thresholds:
   title_max_chars: 60
   meta_description_max_chars: 160
 
+# Planilla y carpeta de DEMO (solo datos del fixture). Las de clientes reales nunca se versionan.
 sheets:
-  spreadsheet_id: ""
-  drive_folder_id: ""
+  spreadsheet_id: 1FCabo_cSgnw39fm2vuffCzUfi1_8GNaGZj4f4-SYRRU
+  drive_folder_id: 1tZxJ02qPUcrpWo8MIPNoLMVIZMcwuJ9j

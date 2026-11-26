@@ -2,7 +2,7 @@
 
 Auditor SEO autónomo, multicliente y de costo $0. Rastrea un sitio, detecta problemas técnicos y on-page, marca señales de riesgo (grey/black hat) y reporta a una planilla de Google Sheets. Corre en GitHub Actions, sin servidores propios.
 
-> Estado: **fase 0** (estructura, reglas, esquema de planilla, sitio fixture). El crawler llega en la fase 1.
+> Estado: **fase 1** (crawler base, 16 reglas técnicas y on-page, salida a Sheets, fixture con recall del 100%). Faltan: diff entre corridas (fase 2), modo competidor completo (3), PageSpeed/Search Console (4) y señales de riesgo (5).
 
 ## Cómo funciona
 
@@ -25,7 +25,7 @@ clients/*.yaml  ──►  GitHub Actions (cron / manual)  ──►  crawler Py
 
 | Ruta | Contenido |
 |---|---|
-| `src/seo_auditor/` | Motor: configuración validada y CLI (el crawler entra en la fase 1). |
+| `src/seo_auditor/` | Motor: config validada, crawler, reglas, reporte y publicación a Sheets. |
 | `rules/rules.yaml` | Catálogo de reglas: id, severidad, categoría, modos, fase. |
 | `schema/sheet_schema.json` | Contrato de las pestañas de la planilla. |
 | `clients/` | Una config por cliente. `_template.yaml` es la plantilla. |
@@ -33,13 +33,22 @@ clients/*.yaml  ──►  GitHub Actions (cron / manual)  ──►  crawler Py
 | `.github/workflows/` | `audit.yml` (auditoría) y `pages.yml` (publica el fixture). |
 | `tests/` | Tests con pytest. |
 
-## Uso (fase 0)
+## Uso
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt && pip install -e .
+pytest                                                    # 51 tests, sin red (servidores locales)
 python -m seo_auditor --config clients/fixture.yaml --validate-only
-pytest
+python -m seo_auditor --config clients/fixture.yaml --expected fixture/EXPECTED_ISSUES.yaml
+python -m seo_auditor --config clients/<cliente>.yaml --publish   # requiere GOOGLE_SERVICE_ACCOUNT_JSON
 ```
+
+Códigos de salida: 0 ok · 2 config inválida · 3 faltan issues esperados · 4 falló la publicación · 5 crawl abortado.
+
+## Reglas implementadas (fase 1)
+
+TECH-001/002/003/004/005/006/008/009/010/011 · ONP-001/002/003/004/005/006. El resto del catálogo
+(`rules/rules.yaml`) está definido pero se activa en su fase; el motor no reporta reglas que no implementa.
 
 ## Privacidad
 
