@@ -172,3 +172,32 @@ def test_missing_credentials_fail_clearly(monkeypatch):
 
 def test_column_letters():
     assert [_col(1), _col(26), _col(27)] == ["A", "Z", "AA"]
+
+
+# ---------- alias de URL (/ frente a /index.html) ----------
+def test_index_html_alias_is_not_double_counted():
+    from seo_auditor.checks import run_checks
+    from seo_auditor.rules import load_rules
+
+    base = "https://x.com/"
+    root = PageRecord(url=base, status=200, is_html=True, title="Inicio", meta_description="d", h1_count=1,
+                      canonical=base, links=[base + "rota.html"])
+    alias = PageRecord(url=base + "index.html", status=200, is_html=True, title="Inicio", meta_description="d",
+                       h1_count=1, canonical=base, links=[base + "rota.html"])
+    rota = PageRecord(url=base + "rota.html", status=404)
+    r = CrawlResult(name="c", domain=base, mode="own")
+    r.pages = {p.url: p for p in (root, alias, rota)}
+    issues = run_checks(r, load_rules(), Scope(base))
+    assert [i.rule_id for i in issues].count("TECH-001") == 1
+    assert "ONP-002" not in {i.rule_id for i in issues}
+
+
+def test_same_title_without_canonical_is_still_flagged():
+    from seo_auditor.checks import run_checks
+    from seo_auditor.rules import load_rules
+
+    base = "https://x.com/"
+    mk = lambda u: PageRecord(url=u, status=200, is_html=True, title="Igual", meta_description="d", h1_count=1)
+    r = CrawlResult(name="c", domain=base, mode="own")
+    r.pages = {u: mk(u) for u in (base, base + "index.html")}
+    assert "ONP-002" in {i.rule_id for i in run_checks(r, load_rules(), Scope(base))}

@@ -68,6 +68,17 @@ def follow_redirects(pages: dict[str, PageRecord], start: str) -> tuple[list[str
         current = nxt
 
 
+def _is_alias(p: PageRecord, pages: dict[str, PageRecord]) -> bool:
+    """Variante de otra URL ya rastreada (p. ej. /index.html frente a /) que declara a esa otra como canonical.
+
+    Es la misma página, no otra: no se cuentan dos veces sus issues. Sin canonical no hay alias.
+    """
+    if not p.is_content_page or not p.canonical:
+        return False
+    canon = normalize_url(p.canonical)
+    return canon != p.url and canon in pages and canon_key(canon) == canon_key(p.url)
+
+
 def _is_error(rec: PageRecord) -> bool:
     return rec.status == 0 or rec.status >= 400
 
@@ -81,8 +92,10 @@ def run_checks(result: CrawlResult, rules: dict[str, Rule], scope: Scope | None 
     covered: set[str] = set()  # URLs ya recorridas desde el inicio de alguna cadena
 
     for p in pages.values():
+        alias = _is_alias(p, pages)
+
         # ---------- Técnico ----------
-        if p.status == 200:
+        if p.status == 200 and not alias:
             for link in dict.fromkeys(p.links):
                 if scope.contains(link):
                     t = pages.get(link)
@@ -123,7 +136,7 @@ def run_checks(result: CrawlResult, rules: dict[str, Rule], scope: Scope | None 
                     em.add("TECH-011", p.url, f"enlace interno por HTTP: {link}", link)
 
         # ---------- On-page ----------
-        if p.is_content_page:
+        if p.is_content_page and not alias:
             if p.title is None or not p.title.strip():
                 em.add("ONP-001", p.url, "sin title" if p.title is None else "title vacío")
             if p.h1_count > 1:
@@ -131,7 +144,7 @@ def run_checks(result: CrawlResult, rules: dict[str, Rule], scope: Scope | None 
             for img in p.images:
                 if not img["has_alt"]:
                     em.add("ONP-006", p.url, f"imagen sin alt: {img['src']}", img["src"])
-        if p.indexable:
+        if p.indexable and not alias:
             if not (p.meta_description or "").strip():
                 em.add("ONP-003", p.url, "sin meta description")
             if p.h1_count == 0:
@@ -168,7 +181,7 @@ def run_checks(result: CrawlResult, rules: dict[str, Rule], scope: Scope | None 
     # Títulos duplicados entre páginas indexables
     by_title: dict[str, list[str]] = defaultdict(list)
     for p in pages.values():
-        if p.indexable and p.title and p.title.strip():
+        if p.indexable and p.title and p.title.strip() and not _is_alias(p, pages):
             by_title[p.title.strip().casefold()].append(p.url)
     for urls in by_title.values():
         if len(urls) > 1:
