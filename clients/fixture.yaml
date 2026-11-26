@@ -1,0 +1,21 @@
+# Config del sitio fixture publicado en GitHub Pages (sitio propio, sin datos de nadie).
+name: fixture
+domain: https://usuariocomun94.github.io/seo.auditor/
+mode: own
+
+crawl:
+  max_urls: 200
+  delay_seconds: 0.5
+  respect_robots: true
+  robots_url: https://usuariocomun94.github.io/seo.auditor/robots.txt
+  user_agent: "seo-auditor/0.1 (+https://github.com/UsuarioComun94/seo.auditor)"
+  render_js: false
+  compare_googlebot_ua: true
+
+thresholds:
+  title_max_chars: 60
+  meta_description_max_chars: 160
+
+sheets:
+  spreadsheet_id: ""
+  drive_folder_id: ""

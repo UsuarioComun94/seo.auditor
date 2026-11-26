@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://usuariocomun94.github.io/seo.auditor/hidden.html">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav>
+    <a href="index.html">Inicio</a>
+    <a href="about.html">Servicios</a>
+    <a href="products.html">Productos</a>
+    <a href="blog/">Blog</a>
+  </nav>
+  <main>
+    <h1>Contenido visible normal</h1>
+    <p>Esta página no tiene title ni meta description. Además esconde texto y enlaces con CSS.</p>
+
+    <!-- Señal de riesgo simulada: relleno de keywords oculto -->
+    <div style="display:none">
+      barato barato barato oferta oferta oferta comprar ya comprar ya mejor precio mejor precio
+      envío gratis envío gratis descuento descuento descuento oferta barato comprar
+    </div>
+
+    <!-- Señal de riesgo simulada: enlaces ocultos fuera de pantalla (patrón típico de sitio hackeado) -->
+    <div style="position:absolute; left:-9999px">
+      <a href="https://example.invalid/spam-1">pastillas baratas</a>
+      <a href="https://example.invalid/spam-2">casino online</a>
+      <a href="https://example.invalid/spam-3">préstamos rápidos</a>
+    </div>
+  </main>
+</body>
+</html>

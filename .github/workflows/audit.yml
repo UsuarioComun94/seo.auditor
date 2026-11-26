@@ -1,0 +1,62 @@
+name: Auditoría SEO
+
+on:
+  workflow_dispatch:
+    inputs:
+      client:
+        description: "Nombre del archivo en clients/ (sin .yaml)"
+        required: true
+        default: fixture
+  schedule:
+    # Semanal, lunes 09:00 UTC. Corre solo sobre el fixture hasta que haya
+    # configs de clientes en un repo privado o en secrets.
+    - cron: "0 9 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "rules/**"
+      - "clients/**"
+      - "fixture/**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pip install -e .
+      - name: Tests
+        run: pytest -q
+
+  audit:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      CLIENT: ${{ github.event.inputs.client || 'fixture' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pip install -e .
+      - name: Validar nombre de cliente
+        run: |
+          if [[ ! "$CLIENT" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo "Nombre de cliente inválido: solo letras, números, guion y guion bajo"
+            exit 1
+          fi
+      - name: Validar config
+        run: python -m seo_auditor --config "clients/${CLIENT}.yaml" --validate-only
+      # Fase 1: acá se ejecuta el crawler y se publica a Sheets y Drive.
+      # Las credenciales irán en GitHub Secrets (GOOGLE_SERVICE_ACCOUNT_JSON), nunca en el repo.

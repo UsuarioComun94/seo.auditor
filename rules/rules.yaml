@@ -1,0 +1,214 @@
+# Catálogo de reglas del auditor.
+# Es el contrato entre el crawler, la planilla y el fixture:
+#   - cada issue que reporta el crawler usa un rule_id de este archivo
+#   - fixture/EXPECTED_ISSUES.yaml referencia estos rule_id
+#
+# severity: critical | high | medium | low | info
+# category: technical | onpage | structured | international | risk
+# hat: white  -> buenas prácticas documentadas
+#      signal -> señal de riesgo (grey/black hat). SOLO se detecta, nunca se ejecuta.
+# modes: en qué modos de ejecución aplica (own | client | competitor)
+# phase: fase del plan en la que se implementa
+
+rules:
+  # ---------- Técnico ----------
+  - id: TECH-001
+    name: broken_internal_link
+    category: technical
+    severity: high
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Enlace interno que responde 4xx/5xx.
+  - id: TECH-002
+    name: broken_external_link
+    category: technical
+    severity: medium
+    hat: white
+    modes: [own, client]
+    phase: 1
+    description: Enlace saliente que responde 4xx/5xx.
+  - id: TECH-003
+    name: redirect_chain
+    category: technical
+    severity: high
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Cadena de 2 o más redirecciones (HTTP 3xx o meta refresh) antes del destino final.
+  - id: TECH-004
+    name: redirect_loop
+    category: technical
+    severity: critical
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Redirecciones que vuelven a una URL ya visitada.
+  - id: TECH-005
+    name: noindex_in_sitemap
+    category: technical
+    severity: high
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: URL listada en el sitemap pero con meta robots o X-Robots-Tag noindex.
+  - id: TECH-006
+    name: sitemap_url_not_200
+    category: technical
+    severity: high
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: URL listada en el sitemap que no responde 200 (4xx, 5xx o redirección).
+  - id: TECH-007
+    name: orphan_url
+    category: technical
+    severity: medium
+    hat: white
+    modes: [own, client, competitor]
+    phase: 2
+    description: URL presente en el sitemap que no recibe ningún enlace interno.
+  - id: TECH-008
+    name: canonical_points_to_error
+    category: technical
+    severity: critical
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Canonical que apunta a una URL con error o redirección.
+  - id: TECH-009
+    name: canonical_mismatch
+    category: technical
+    severity: medium
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Canonical que apunta a otra URL indexable distinta (posible canibalización o error de plantilla).
+  - id: TECH-010
+    name: blocked_by_robots_but_linked
+    category: technical
+    severity: medium
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: URL bloqueada por robots.txt pero enlazada internamente.
+  - id: TECH-011
+    name: mixed_content
+    category: technical
+    severity: medium
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Página HTTPS que referencia recursos o enlaces por HTTP.
+
+  # ---------- On-page ----------
+  - id: ONP-001
+    name: title_missing
+    category: onpage
+    severity: high
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Página sin etiqueta title o con title vacío.
+  - id: ONP-002
+    name: title_duplicate
+    category: onpage
+    severity: medium
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Mismo title en 2 o más URLs indexables.
+  - id: ONP-003
+    name: meta_description_missing
+    category: onpage
+    severity: low
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Página indexable sin meta description.
+  - id: ONP-004
+    name: h1_missing
+    category: onpage
+    severity: medium
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Página indexable sin H1.
+  - id: ONP-005
+    name: h1_multiple
+    category: onpage
+    severity: low
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Página con más de un H1.
+  - id: ONP-006
+    name: image_alt_missing
+    category: onpage
+    severity: low
+    hat: white
+    modes: [own, client, competitor]
+    phase: 1
+    description: Imagen sin atributo alt.
+
+  # ---------- Datos estructurados ----------
+  - id: SCH-001
+    name: jsonld_invalid
+    category: structured
+    severity: medium
+    hat: white
+    modes: [own, client, competitor]
+    phase: 2
+    description: Bloque JSON-LD con sintaxis inválida. Solo validación sintáctica, no elegibilidad de rich results.
+
+  # ---------- Internacional ----------
+  - id: INT-001
+    name: hreflang_no_return
+    category: international
+    severity: medium
+    hat: white
+    modes: [own, client, competitor]
+    phase: 2
+    description: Hreflang sin enlace de retorno desde la URL alternativa.
+
+  # ---------- Señales de riesgo (grey/black hat: solo detección) ----------
+  - id: RSK-001
+    name: hidden_text
+    category: risk
+    severity: high
+    hat: signal
+    modes: [own, client, competitor]
+    phase: 5
+    description: Texto oculto por CSS (display:none, tamaño 0, fuera de pantalla) con densidad anómala de keywords.
+  - id: RSK-002
+    name: hidden_links
+    category: risk
+    severity: high
+    hat: signal
+    modes: [own, client, competitor]
+    phase: 5
+    description: Enlaces ocultos por CSS, típicos de sitios hackeados o spam de links.
+  - id: RSK-003
+    name: cloaking_diff
+    category: risk
+    severity: critical
+    hat: signal
+    modes: [own, client]
+    phase: 5
+    description: Contenido distinto entre user-agent de usuario y user-agent de Googlebot. No disponible en modo competitor (no se falsifica Googlebot en sitios ajenos).
+  - id: RSK-004
+    name: suspicious_outbound_links
+    category: risk
+    severity: medium
+    hat: signal
+    modes: [own, client, competitor]
+    phase: 5
+    description: Enlaces salientes a dominios con patrones de spam o sin relación temática.
+  - id: RSK-005
+    name: doorway_pattern
+    category: risk
+    severity: medium
+    hat: signal
+    modes: [own, client, competitor]
+    phase: 5
+    description: Conjunto de páginas casi idénticas que difieren solo en una variable (ciudad, keyword).

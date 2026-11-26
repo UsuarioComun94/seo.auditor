@@ -1,0 +1,50 @@
+# Errores plantados en fixture/site, por regla de rules/rules.yaml.
+#
+# Criterio de la fase 1: el crawler debe detectar el 100% de estos issues (recall).
+# Puede reportar issues adicionales (por ejemplo ONP-003 en las páginas de redirección);
+# eso no cuenta como falla.
+#
+# url: ruta relativa a base_url. "" es la raíz (index.html).
+# target: URL a la que apunta el problema, cuando aplica.
+# notes: condiciones especiales de la prueba.
+
+base_url: https://usuariocomun94.github.io/seo.auditor/
+
+issues:
+  # ---------- Técnico ----------
+  - {rule: TECH-001, url: "", target: missing-link.html}
+  - {rule: TECH-002, url: "", target: "https://example.invalid/pagina"}
+  - {rule: TECH-003, url: redirect-a.html, target: redirect-final.html, notes: "cadena de 2 meta refresh; GitHub Pages no permite 301/302"}
+  - {rule: TECH-005, url: noindex-accidental.html}
+  - {rule: TECH-006, url: missing-page.html}
+  - {rule: TECH-006, url: redirect-a.html}
+  - {rule: TECH-007, url: orphan.html}
+  - {rule: TECH-008, url: blog/post-2.html, target: blog/deleted-post.html}
+  - {rule: TECH-009, url: blog/post-1.html, target: blog/}
+  - {rule: TECH-010, url: private/secret.html, notes: "robots.txt vive en /seo.auditor/robots.txt, no en la raíz del dominio: requiere crawl.robots_url"}
+  - {rule: TECH-011, url: media.html, target: "http://example.com/logo.png"}
+
+  # ---------- On-page ----------
+  - {rule: ONP-001, url: hidden.html}
+  - {rule: ONP-002, url: about.html}
+  - {rule: ONP-002, url: products.html}
+  - {rule: ONP-003, url: about.html}
+  - {rule: ONP-003, url: hidden.html}
+  - {rule: ONP-004, url: orphan.html}
+  - {rule: ONP-005, url: products.html}
+  - {rule: ONP-006, url: media.html, target: img/pixel.svg}
+
+  # ---------- Datos estructurados e internacional ----------
+  - {rule: SCH-001, url: media.html}
+  - {rule: INT-001, url: lang-en.html, target: lang-es.html}
+
+  # ---------- Señales de riesgo ----------
+  - {rule: RSK-001, url: hidden.html}
+  - {rule: RSK-002, url: hidden.html}
+  # RSK-003 (cloaking), RSK-004 y RSK-005 no se pueden plantar en un sitio estático:
+  # se prueban en la fase 5 con un servidor local de tests.
+
+# Reglas no cubiertas por GitHub Pages y que se prueban con servidor local en la fase 1:
+untestable_on_pages:
+  - TECH-004   # bucle de redirecciones HTTP
+  - "redirecciones HTTP 301/302 reales y cabecera X-Robots-Tag"

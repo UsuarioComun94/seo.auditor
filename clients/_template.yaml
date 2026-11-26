@@ -1,0 +1,29 @@
+# Plantilla de configuración por cliente.
+# Copiar a clients/<nombre>.yaml. Los archivos reales están en .gitignore:
+# NO subir configs de clientes al repo público.
+
+name: nombre-del-cliente
+domain: https://www.ejemplo.com
+
+# own | client | competitor  (ver docs/ETHICS.md)
+mode: client
+
+# Obligatorio en mode: client. Confirma que el dueño del sitio autorizó la auditoría.
+authorized: false
+
+crawl:
+  max_urls: 5000
+  delay_seconds: 0.5          # en competitor: mínimo 2.0
+  respect_robots: true        # en competitor: debe ser true
+  robots_url: ""              # opcional: solo si robots.txt no está en la raíz del dominio
+  user_agent: "seo-auditor/0.1 (+https://github.com/UsuarioComun94/seo.auditor)"
+  render_js: false            # true usa Playwright (más lento)
+  compare_googlebot_ua: false # solo own/client; habilita la detección de cloaking
+
+thresholds:
+  title_max_chars: 60
+  meta_description_max_chars: 160
+
+sheets:
+  spreadsheet_id: ""          # se completa al crear la planilla
+  drive_folder_id: ""         # carpeta de Drive para los CSV completos

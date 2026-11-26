@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /seo.auditor/private/
+
+Sitemap: https://usuariocomun94.github.io/seo.auditor/sitemap.xml

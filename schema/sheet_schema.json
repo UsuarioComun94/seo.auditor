@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "notes": "Contrato de la planilla de Google Sheets. El crawl crudo NO va a Sheets (tope de celdas): va como CSV a Drive y la planilla enlaza a él. Sheets recibe solo resumen, issues, histórico y señales de riesgo.",
+  "tabs": [
+    {
+      "name": "Config",
+      "purpose": "Parámetros del cliente que lee el motor.",
+      "columns": ["clave", "valor", "descripcion"]
+    },
+    {
+      "name": "Resumen",
+      "purpose": "Una fila por corrida con puntaje y semáforo.",
+      "columns": [
+        "run_id", "fecha_utc", "dominio", "modo", "urls_rastreadas",
+        "criticos", "altos", "medios", "bajos", "puntaje",
+        "delta_puntaje_vs_anterior", "link_csv_completo"
+      ]
+    },
+    {
+      "name": "Issues",
+      "purpose": "Un issue por fila, con estado respecto de la corrida anterior.",
+      "columns": [
+        "run_id", "regla_id", "severidad", "categoria", "url", "detalle",
+        "arreglable_en_plataforma", "recomendacion", "primera_vez_visto", "estado"
+      ],
+      "estado_values": ["nuevo", "recurrente", "resuelto"]
+    },
+    {
+      "name": "Historico",
+      "purpose": "Serie temporal para ver tendencia entre corridas.",
+      "columns": [
+        "run_id", "fecha_utc", "dominio", "puntaje",
+        "criticos", "altos", "medios", "bajos", "urls_rastreadas"
+      ]
+    },
+    {
+      "name": "Riesgo",
+      "purpose": "Señales grey/black hat detectadas. Solo detección, con evidencia.",
+      "columns": [
+        "run_id", "regla_id", "nivel_riesgo", "url", "evidencia", "referencia_politica"
+      ]
+    }
+  ],
+  "severity_weights": {
+    "critical": 10,
+    "high": 5,
+    "medium": 2,
+    "low": 1
+  },
+  "score_formula": "puntaje = max(0, 100 - sum(peso_severidad por issue unico) normalizado por tamaño del sitio). La fórmula exacta se fija en la fase 2 y se documenta junto con el cambio."
+}

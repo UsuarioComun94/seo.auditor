@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/</loc></url>
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/about.html</loc></url>
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/products.html</loc></url>
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/media.html</loc></url>
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/lang-en.html</loc></url>
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/lang-es.html</loc></url>
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/blog/</loc></url>
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/blog/post-1.html</loc></url>
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/blog/post-2.html</loc></url>
+  <!-- Errores plantados: noindex, huérfana, redirección y URL inexistente -->
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/noindex-accidental.html</loc></url>
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/orphan.html</loc></url>
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/redirect-a.html</loc></url>
+  <url><loc>https://usuariocomun94.github.io/seo.auditor/missing-page.html</loc></url>
+</urlset>
