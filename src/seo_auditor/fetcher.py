@@ -25,6 +25,19 @@ class FetchResult:
     elapsed_ms: int = 0
 
 
+def host_problem(host: str) -> str:
+    """"" si el host es público; si no, el motivo: 'no resuelve' o 'IP privada' (sin revelar la IP)."""
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError as exc:
+        return f"no resuelve por DNS ({type(exc).__name__})"
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+            return "resuelve a una IP privada/reservada"
+    return "" if infos else "no resuelve por DNS (sin direcciones)"
+
+
 def is_public_host(host: str) -> bool:
     """False si el host no resuelve o resuelve a una IP privada/loopback/link-local (anti-SSRF)."""
     try:

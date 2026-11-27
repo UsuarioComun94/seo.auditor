@@ -25,7 +25,7 @@ from .checks import run_checks
 from .config import ClientConfig, ConfigError, load_config
 from .crawler import CrawlAbort, Crawler
 from .expected import check_expected
-from .fetcher import is_public_host
+from .fetcher import host_problem, is_public_host
 from .models import CrawlResult
 from .platform import load_platforms, platform_label
 from .report import build_tabs, count_by_severity, load_schema, new_run_id, write_local
@@ -85,7 +85,8 @@ def audit_site(cfg: ClientConfig, ctx: Context, *, publish: bool, upload_csv: bo
 
     if check_public and not is_public_host(urlsplit(cfg.domain).hostname or ""):
         # Anti-SSRF: el runner no debe consultar redes privadas ni el endpoint de metadatos de la nube
-        print(f"ERROR {pre}el dominio no resuelve o apunta a una red privada; se omite", file=sys.stderr)
+        why = host_problem(urlsplit(cfg.domain).hostname or "") or "no es un host público"
+        print(f"ERROR {pre}se omite: el dominio {why}", file=sys.stderr)
         out.code = 2
         return out
 
