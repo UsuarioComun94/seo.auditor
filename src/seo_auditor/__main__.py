@@ -114,6 +114,9 @@ def audit_site(cfg: ClientConfig, ctx: Context, *, publish: bool, upload_csv: bo
     print(f"{pre}Plataforma: {platform_label(ctx.platforms, result.platform) if result.platform else 'no detectada'}")
     print(f"{pre}Issues: {counts['critical']} críticos, {counts['high']} altos, {counts['medium']} medios, {counts['low']} bajos")
     print(f"{pre}Puntaje: {score} (comparable: {comparable})")
+    signals = [i for i in issues if i.hat == "signal"]
+    print(f"{pre}Señales de riesgo (fuera del puntaje): {len(signals)}"
+          + (" [" + ", ".join(f"{r}×{sum(1 for i in signals if i.rule_id == r)}" for r in sorted({i.rule_id for i in signals})) + "]" if signals else ""))
     for note in result.notes:
         print(f"{pre}Nota: {note}")
     if upload_csv:

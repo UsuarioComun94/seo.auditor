@@ -41,8 +41,9 @@ issues:
   # ---------- Señales de riesgo ----------
   - {rule: RSK-001, url: hidden.html}
   - {rule: RSK-002, url: hidden.html}
-  # RSK-003 (cloaking), RSK-004 y RSK-005 no se pueden plantar en un sitio estático:
-  # se prueban en la fase 5 con un servidor local de tests.
+  - {rule: RSK-004, url: hidden.html, notes: "anchor text 'casino online' / 'pastillas baratas' hacia dominio externo"}
+  # RSK-003 (cloaking: GitHub Pages no distingue user-agents) y RSK-005 (páginas puerta) se prueban
+  # con servidores locales en tests/test_risk.py.
 
 # Reglas no cubiertas por GitHub Pages y que se prueban con servidor local en la fase 1:
 untestable_on_pages:

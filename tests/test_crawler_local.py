@@ -30,11 +30,13 @@ def test_fixture_recall_is_100_percent(fixture_run):
     assert report.missing == [], f"no detectados: {report.missing}"
 
 
-def test_phase_2_rules_fire_and_phase_5_rules_do_not_yet(fixture_run):
-    _, _, issues = fixture_run
+def test_risk_signals_fire_only_on_the_planted_page(fixture_run):
+    base, _, issues = fixture_run
     found = {i.rule_id for i in issues}
-    assert {"TECH-007", "SCH-001", "INT-001"} <= found
-    assert not found & {"RSK-001", "RSK-002"}
+    assert {"TECH-007", "SCH-001", "INT-001", "RSK-001", "RSK-002", "RSK-004"} <= found
+    risk = [(i.rule_id, i.url) for i in issues if i.rule_id.startswith("RSK")]
+    assert {u for _, u in risk} == {base + "hidden.html"}, f"falsos positivos de riesgo: {risk}"
+    assert not found & {"RSK-003", "RSK-005"}
 
 
 def test_fixture_phase_2_issues_hit_the_right_urls(fixture_run):

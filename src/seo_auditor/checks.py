@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 
+from . import risk
 from .models import CrawlResult, Issue, PageRecord
 from .rules import Rule
 from .urls import Scope, canon_key, normalize_url
@@ -234,6 +235,27 @@ def run_checks(result: CrawlResult, rules: dict[str, Rule], scope: Scope | None 
         if len(urls) > 1:
             for u in urls:
                 em.add("ONP-002", u, f"title repetido en {len(urls)} URLs")
+
+    # ---------- Señales de riesgo (fase 5): solo detección ----------
+    own_host = risk._host(result.domain)
+    for p in pages.values():
+        if not p.is_content_page or _is_alias(p, pages):
+            continue
+        hit, detail = risk.hidden_text_signal(p)
+        if hit:
+            em.add("RSK-001", p.url, detail)
+        hit, detail, target = risk.hidden_links_signal(p, own_host)
+        if hit:
+            em.add("RSK-002", p.url, detail, target)
+        for host, why in risk.spam_links(p, own_host):
+            em.add("RSK-004", p.url, why, host)
+        sim = p.cloak.get("similarity")
+        if sim is not None and sim < risk.CLOAK_MAX_SIMILARITY:
+            em.add("RSK-003", p.url, f"similitud {sim:.2f} entre usuario y Googlebot"
+                   + (f"; title distinto: {p.cloak.get('title_bot', '')!r}" if p.cloak.get("title_user") != p.cloak.get("title_bot") else ""))
+    for directory, cluster in risk.doorway_clusters([p for p in pages.values() if not _is_alias(p, pages)]):
+        first = sorted(cluster, key=lambda x: x.url)[0]
+        em.add("RSK-005", first.url, f"{len(cluster)} páginas casi idénticas en {directory}", directory)
 
     order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
     em.issues.sort(key=lambda i: (order.get(i.severity, 9), i.rule_id, i.url, i.target))

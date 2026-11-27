@@ -105,3 +105,16 @@ Para sitios que arman el HTML en el navegador (Google Sites, SPAs): poné `rende
 - Si Chromium no está disponible, el crawl sigue con el HTML crudo y deja una nota.
 - Se activa solo en plataformas que arman el contenido con JavaScript (hoy: Google Sites), aunque la fila no lo pida.
 - Es más lento: en el resto, usalo solo en los sitios que lo necesitan.
+
+## Señales de riesgo (fase 5, solo detección)
+Pestaña **Riesgo**; no suman al puntaje. Son señales, no veredictos: revisalas a mano antes de actuar.
+
+| Regla | Qué detecta | Umbral conservador |
+|---|---|---|
+| RSK-001 | Texto oculto con relleno de keywords | ≥ 20 palabras ocultas y ≥ 40% repetidas |
+| RSK-002 | Enlaces externos ocultos | ≥ 3, excluyendo redes sociales y servicios conocidos |
+| RSK-003 | Cloaking: otro contenido para Googlebot | similitud de texto < 0,5 en una muestra de 30 páginas; solo `own`/`client` con `compare_googlebot_ua`; un 403 al bot no cuenta |
+| RSK-004 | Enlaces salientes con patrón de spam | patrón en el dominio o en el texto del enlace |
+| RSK-005 | Páginas puerta (doorway) | ≥ 5 páginas del mismo directorio con ≥ 85% de texto idéntico |
+
+Limitaciones: RSK-001/002 ven CSS en línea y el atributo `hidden`, no hojas de estilo externas; RSK-004 usa una lista corta de patrones, no una base de reputación de dominios.

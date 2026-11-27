@@ -27,6 +27,11 @@ class CrawlAbort(RuntimeError):
     """El crawl no puede ni debe continuar (por ejemplo, robots.txt inaccesible en modo competitor)."""
 
 
+CLOAK_SAMPLE = 30
+BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+GOOGLEBOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -158,6 +163,10 @@ class Crawler:
             rec.resources = parsed.resources
             rec.hreflang = parsed.hreflang
             rec.jsonld = parsed.jsonld
+            rec.hidden_text = parsed.hidden_text[:5000]
+            rec.anchors = parsed.anchors[:300]
+            rec.main_word_count = len(parsed.main_words)
+            rec.main_words = frozenset(parsed.main_words[:600])
             if parsed.refresh_url:
                 rec.redirect_to, rec.redirect_kind = parsed.refresh_url, "meta"
         return rec
@@ -221,10 +230,38 @@ class Crawler:
             self.renderer.close()
             r.notes.append(f"JavaScript renderizado en {self.rendered_pages} páginas"
                            + (f" ({self.render_failures} fallaron y usaron el HTML crudo)" if self.render_failures else ""))
+        if self.cfg.crawl.compare_googlebot_ua and self.cfg.mode in ("own", "client"):
+            self._compare_user_agents()
         if self.cfg.mode != "competitor":
             self._check_externals()
         r.finished_at = _now()
         return r
+
+    # ---------- cloaking: usuario frente a Googlebot (solo own/client) ----------
+    def _compare_user_agents(self) -> None:
+        """Pide una muestra de páginas con un UA de navegador y con el de Googlebot y compara el texto.
+
+        Solo en sitios propios o autorizados (config.py lo exige). Un 403 al UA de Googlebot NO es cloaking:
+        muchos sitios bloquean Googlebots falsos (verifican por IP), así que solo se comparan 200 con HTML.
+        """
+        from .parser import parse_html as _parse
+        from .risk import CLOAK_MIN_WORDS, jaccard
+
+        sample = [p for p in self.result.pages.values() if p.indexable][:CLOAK_SAMPLE]
+        compared = 0
+        for rec in sample:
+            user = self.fetcher.get(rec.url, headers={"User-Agent": BROWSER_UA})
+            bot = self.fetcher.get(rec.url, headers={"User-Agent": GOOGLEBOT_UA})
+            if user.status != 200 or bot.status != 200 or not user.text or not bot.text:
+                continue
+            pu, pb = _parse(user.text, rec.url), _parse(bot.text, rec.url)
+            if len(pu.main_words) < CLOAK_MIN_WORDS and len(pb.main_words) < CLOAK_MIN_WORDS:
+                continue
+            compared += 1
+            rec.cloak = {"similarity": jaccard(frozenset(pu.main_words), frozenset(pb.main_words)),
+                         "words": max(len(pu.main_words), len(pb.main_words)),
+                         "title_user": pu.title or "", "title_bot": pb.title or ""}
+        self.result.notes.append(f"cloaking: se compararon {compared} de {len(sample)} páginas (usuario frente a Googlebot)")
 
     # ---------- enlaces externos (solo own/client) ----------
     def _check_externals(self) -> None:

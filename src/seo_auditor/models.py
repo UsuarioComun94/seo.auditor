@@ -28,6 +28,13 @@ class PageRecord:
     resources: list[str] = field(default_factory=list)
     hreflang: list[tuple[str, str]] = field(default_factory=list)
     jsonld: list[str] = field(default_factory=list)
+    # Señales de riesgo (fase 5)
+    hidden_text: str = ""
+    anchors: list = field(default_factory=list)          # (href, texto, oculto)
+    main_word_count: int = 0
+    main_words: frozenset = field(default_factory=frozenset)
+    # Comparación con el user-agent de Googlebot (solo own/client con compare_googlebot_ua)
+    cloak: dict = field(default_factory=dict)            # {"similarity": float, "words": int, "title_user": str, "title_bot": str}
     # Contexto del crawl
     in_sitemap: bool = False
     depth: int = 0

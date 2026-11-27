@@ -76,14 +76,14 @@ class Fetcher:
                 self._sleep(remaining)
         self._last = self._clock()
 
-    def get(self, url: str, read_body: bool = True) -> FetchResult:
+    def get(self, url: str, read_body: bool = True, headers: dict | None = None) -> FetchResult:
         if urlsplit(url).scheme not in ("http", "https"):
             return FetchResult(url=url, error="esquema no soportado")
         self._wait()
         self.requests_made += 1
         started = self._clock()
         try:
-            resp = self.session.get(url, allow_redirects=False, timeout=self.timeout, stream=True)
+            resp = self.session.get(url, allow_redirects=False, timeout=self.timeout, stream=True, headers=headers)
         except requests.RequestException as exc:
             return FetchResult(url=url, error=f"{type(exc).__name__}: {exc}"[:300],
                                elapsed_ms=int((self._clock() - started) * 1000))
