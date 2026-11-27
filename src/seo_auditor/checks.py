@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 
 from .models import CrawlResult, Issue, PageRecord
@@ -21,6 +22,9 @@ RECOMMENDATIONS = {
     "TECH-009": "Verificar que el canonical sea intencional; si es error de plantilla, apuntar a la propia URL.",
     "TECH-010": "O se permite en robots.txt, o se deja de enlazar internamente.",
     "TECH-011": "Servir el recurso o enlace por HTTPS.",
+    "TECH-007": "Enlazar la página desde la navegación o desde contenido relacionado, o sacarla del sitemap si no debe indexarse.",
+    "SCH-001": "Corregir la sintaxis del JSON-LD (coma final, comillas, llaves) y validar el resultado.",
+    "INT-001": "Agregar en la página alternativa el hreflang de retorno hacia esta URL.",
     "ONP-001": "Agregar un title único y descriptivo.",
     "ONP-002": "Dar a cada URL un title propio.",
     "ONP-003": "Agregar una meta description única que resuma la página.",
@@ -91,6 +95,16 @@ def run_checks(result: CrawlResult, rules: dict[str, Rule], scope: Scope | None 
     redirect_targets = {normalize_url(p.redirect_to) for p in pages.values() if p.redirect_to}
     covered: set[str] = set()  # URLs ya recorridas desde el inicio de alguna cadena
 
+    # Enlaces entrantes por URL canónica-equivalente (/ e /index.html cuentan como la misma)
+    inlinks: dict[str, set[str]] = defaultdict(set)
+    for q in pages.values():
+        if q.status == 200:
+            for link in q.links:
+                if canon_key(link) != canon_key(q.url):
+                    inlinks[canon_key(link)].add(q.url)
+        if q.redirect_to and canon_key(q.redirect_to) != canon_key(q.url):
+            inlinks[canon_key(q.redirect_to)].add(q.url)
+
     for p in pages.values():
         alias = _is_alias(p, pages)
 
@@ -144,6 +158,13 @@ def run_checks(result: CrawlResult, rules: dict[str, Rule], scope: Scope | None 
             for img in p.images:
                 if not img["has_alt"]:
                     em.add("ONP-006", p.url, f"imagen sin alt: {img['src']}", img["src"])
+            for n, block in enumerate(p.jsonld, 1):
+                try:
+                    if not block.strip():
+                        raise ValueError("bloque vacío")
+                    json.loads(block)
+                except ValueError as exc:  # JSONDecodeError es subclase de ValueError
+                    em.add("SCH-001", p.url, f"JSON-LD #{n} inválido: {str(exc)[:120]}", f"jsonld-{n}")
         if p.indexable and not alias:
             if not (p.meta_description or "").strip():
                 em.add("ONP-003", p.url, "sin meta description")
@@ -162,6 +183,32 @@ def run_checks(result: CrawlResult, rules: dict[str, Rule], scope: Scope | None 
                     reported_cycles.add(members)
                     head = min(members)
                     em.add("TECH-004", head, "bucle de redirecciones: " + " → ".join([p.url] + hops), final)
+
+    # Huérfanas: en el sitemap pero sin ningún enlace interno. Con crawl truncado faltan datos de
+    # enlaces entrantes, así que la regla se omite para no generar falsos positivos.
+    if not result.truncated:
+        root_key = canon_key(scope.root)
+        for url in result.sitemap_urls:
+            p = pages.get(url)
+            if p is None or not p.is_content_page or _is_alias(p, pages) or canon_key(url) == root_key:
+                continue
+            if not inlinks.get(canon_key(url)):
+                em.add("TECH-007", url, "está en el sitemap pero ninguna página rastreada la enlaza")
+
+    # Hreflang sin enlace de retorno
+    for p in pages.values():
+        if not p.is_content_page or _is_alias(p, pages):
+            continue
+        for lang, target in p.hreflang:
+            t_url = normalize_url(target)
+            if canon_key(t_url) == canon_key(p.url):
+                continue  # auto-referencia
+            tp = pages.get(t_url)
+            if tp is None or not tp.is_content_page:
+                continue
+            back = {canon_key(h) for _, h in tp.hreflang}
+            if canon_key(p.url) not in back:
+                em.add("INT-001", p.url, f"hreflang {lang} → {t_url}, que no declara el retorno", t_url)
 
     # Sitemap con URLs que no sirven
     for url in result.sitemap_urls:

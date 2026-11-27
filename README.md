@@ -2,7 +2,7 @@
 
 Auditor SEO autónomo, multicliente y de costo $0. Rastrea un sitio, detecta problemas técnicos y on-page, marca señales de riesgo (grey/black hat) y reporta a una planilla de Google Sheets. Corre en GitHub Actions, sin servidores propios.
 
-> Estado: **fase 1** (crawler base, 16 reglas técnicas y on-page, salida a Sheets, fixture con recall del 100%). Faltan: diff entre corridas (fase 2), modo competidor completo (3), PageSpeed/Search Console (4) y señales de riesgo (5).
+> Estado: **fase 2** (19 reglas técnicas, on-page, datos estructurados e internacional; puntaje; diff entre corridas; detección de plataforma; fixture con recall del 100%). Faltan: modo competidor completo (3), PageSpeed/Search Console (4) y señales de riesgo (5).
 
 ## Cómo funciona
 
@@ -27,6 +27,7 @@ clients/*.yaml  ──►  GitHub Actions (cron / manual)  ──►  crawler Py
 |---|---|
 | `src/seo_auditor/` | Motor: config validada, crawler, reglas, reporte y publicación a Sheets. |
 | `rules/rules.yaml` | Catálogo de reglas: id, severidad, categoría, modos, fase. |
+| `rules/platforms.yaml` | Límites conocidos por plataforma (solo los de alta confianza). |
 | `schema/sheet_schema.json` | Contrato de las pestañas de la planilla. |
 | `clients/` | Una config por cliente. `_template.yaml` es la plantilla. |
 | `fixture/` | Sitio de prueba con errores plantados y `EXPECTED_ISSUES.yaml`. |
@@ -37,7 +38,7 @@ clients/*.yaml  ──►  GitHub Actions (cron / manual)  ──►  crawler Py
 
 ```bash
 pip install -r requirements.txt && pip install -e .
-pytest                                                    # 51 tests, sin red (servidores locales)
+pytest                                                    # 80 tests, sin red (servidores locales)
 python -m seo_auditor --config clients/fixture.yaml --validate-only
 python -m seo_auditor --config clients/fixture.yaml --expected fixture/EXPECTED_ISSUES.yaml
 python -m seo_auditor --config clients/<cliente>.yaml --publish   # requiere GOOGLE_SERVICE_ACCOUNT_JSON
@@ -45,10 +46,26 @@ python -m seo_auditor --config clients/<cliente>.yaml --publish   # requiere GOO
 
 Códigos de salida: 0 ok · 2 config inválida · 3 faltan issues esperados · 4 falló la publicación · 5 crawl abortado.
 
-## Reglas implementadas (fase 1)
+## Reglas implementadas (fases 1 y 2)
 
-TECH-001/002/003/004/005/006/008/009/010/011 · ONP-001/002/003/004/005/006. El resto del catálogo
-(`rules/rules.yaml`) está definido pero se activa en su fase; el motor no reporta reglas que no implementa.
+TECH-001/002/003/004/005/006/007/008/009/010/011 · ONP-001/002/003/004/005/006 · SCH-001 · INT-001.
+El resto del catálogo (`rules/rules.yaml`, señales de riesgo) está definido pero se activa en su fase;
+el motor no reporta reglas que no implementa.
+
+## Puntaje
+
+`puntaje = 100 · exp(-densidad / 2)`, con `densidad = (suma de pesos por severidad) / (URLs rastreadas)`.
+Pesos: crítico 10, alto 5, medio 2, bajo 1. No depende del tamaño del sitio, está acotado entre 0 y 100 y
+excluye las señales de riesgo. La escala (`score_scale`) es la perilla de calibración y vive en
+`schema/sheet_schema.json`: cambiarla cambia el significado del histórico, así que se versiona ahí.
+
+## Diff entre corridas
+
+Antes de escribir, el motor lee `Issues` e `Historico` de la propia planilla. Cada issue lleva una clave
+estable (`issue_key`) y queda como **nuevo**, **recurrente** (conserva `primera_vez_visto`) o **resuelto**
+(aparece una sola vez). Con un crawl truncado por `max_urls` no se marca nada como resuelto: un issue
+ausente no prueba que se haya arreglado. Si la lectura falla, la publicación aborta en vez de escribir
+con estado vacío.
 
 ## Privacidad
 
@@ -58,9 +75,9 @@ Este repo es público. **No se versionan** configs reales de clientes ni resulta
 
 | Fase | Entregable |
 |---|---|
-| 0 | Repo, reglas, esquema de planilla, fixture, workflows base |
-| 1 | Crawler base y salida a Sheets; el fixture debe detectar el 100% de los errores plantados |
-| 2 | Reglas completas, detección de plataforma, histórico y diff entre corridas |
+| 0 | Repo, reglas, esquema de planilla, fixture, workflows base (hecha) |
+| 1 | Crawler base y salida a Sheets; el fixture detecta el 100% de los errores plantados (hecha) |
+| 2 | Huérfanas, JSON-LD, hreflang, plataforma, puntaje y diff entre corridas (hecha) |
 | 3 | Modo competidor y benchmark |
 | 4 | PageSpeed/CrUX y Search Console (solo sitios autorizados) |
 | 5 | Módulo de señales de riesgo |

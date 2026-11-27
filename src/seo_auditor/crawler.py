@@ -15,6 +15,7 @@ from .config import ClientConfig
 from .fetcher import Fetcher, is_public_host
 from .models import CrawlResult, PageRecord
 from .parser import parse_html
+from .platform import detect_platform
 from .urls import Scope, normalize_url, resolve
 
 MAX_EXTERNAL_CHECKS = 200
@@ -116,6 +117,8 @@ class Crawler:
                 rec.redirect_to, rec.redirect_kind = target, "http"
         ctype = rec.content_type.lower()
         rec.is_html = res.text is not None and ("html" in ctype)
+        if url == self.scope.root and res.status == 200 and res.text:
+            self.result.platform = detect_platform(url, res.headers, res.text)
         if rec.is_html and res.status == 200 and res.text:
             parsed = parse_html(res.text, url)
             rec.title = parsed.title

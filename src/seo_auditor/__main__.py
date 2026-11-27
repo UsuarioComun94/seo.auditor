@@ -14,8 +14,10 @@ from .checks import run_checks
 from .config import ConfigError, load_config
 from .crawler import CrawlAbort, Crawler
 from .expected import check_expected
+from .platform import load_platforms, platform_label
 from .report import build_tabs, count_by_severity, load_schema, new_run_id, write_local
 from .rules import load_rules
+from .score import DEFAULT_SCALE, compute_score
 from .urls import Scope
 
 
@@ -46,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     rules = load_rules()
+    schema = load_schema()
+    platforms = load_platforms()
     run_id = new_run_id()
     crawler = Crawler(cfg, log=(lambda m: None) if args.quiet else print)
     try:
@@ -56,10 +60,14 @@ def main(argv: list[str] | None = None) -> int:
 
     issues = run_checks(result, rules, Scope(cfg.domain))
     counts = count_by_severity(issues)
-    paths = write_local(args.output_dir, result, issues, run_id)
+    score = compute_score(issues, len(result.pages), schema.get("severity_weights", {}),
+                          schema.get("score_scale", DEFAULT_SCALE))
+    paths = write_local(args.output_dir, result, issues, run_id, score=score)
     print(f"\nRastreadas {len(result.pages)} URLs ({crawler.fetcher.requests_made} pedidos)"
           f"{' [TRUNCADO por max_urls]' if result.truncated else ''}")
+    print(f"Plataforma: {platform_label(platforms, result.platform) if result.platform else 'no detectada'}")
     print(f"Issues: {counts['critical']} críticos, {counts['high']} altos, {counts['medium']} medios, {counts['low']} bajos")
+    print(f"Puntaje: {score}")
     for note in result.notes:
         print(f"Nota: {note}")
     print(f"CSV completos en {paths['pages'].parent}")
@@ -75,8 +83,19 @@ def main(argv: list[str] | None = None) -> int:
             sheets_svc, drive_svc, sa_email = build_services()
             link = upload_csv_to_drive(drive_svc, cfg.sheets.drive_folder_id, paths["pages"],
                                        f"{cfg.name}-{run_id}-pages.csv")
-            tabs = build_tabs(result, issues, run_id, csv_link=link or "ver artifact del workflow", schema=load_schema())
-            SheetsPublisher(sheets_svc, cfg.sheets.spreadsheet_id, load_schema()).publish(tabs)
+            publisher = SheetsPublisher(sheets_svc, cfg.sheets.spreadsheet_id, schema)
+            publisher.ensure_tabs()
+            previous = publisher.read_previous(cfg.domain)
+            delta = None
+            if previous.last_score is not None:
+                delta = round(score - previous.last_score, 1)
+                print(f"Puntaje anterior: {previous.last_score} (cambio: {delta:+})")
+            tabs = build_tabs(result, issues, run_id, csv_link=link or "ver artifact del workflow",
+                              schema=schema, previous=previous, score=score, delta=delta, platforms=platforms)
+            publisher.write_all(tabs)
+            estados = [r[schema_idx(schema, "Issues", "estado")] for r in tabs["Issues"]]
+            print("Estado de issues: "
+                  + ", ".join(f"{n} {e}" for e in ("nuevo", "recurrente", "resuelto") if (n := estados.count(e))))
             print(f"Publicado en la planilla {cfg.sheets.spreadsheet_id} (cuenta {sa_email})")
         except PublishError as exc:
             print(f"ERROR: publicación: {exc}", file=sys.stderr)
@@ -97,6 +116,10 @@ def main(argv: list[str] | None = None) -> int:
             exit_code = exit_code or 3
 
     return exit_code
+
+
+def schema_idx(schema: dict, tab: str, column: str) -> int:
+    return next(t["columns"].index(column) for t in schema["tabs"] if t["name"] == tab)
 
 
 if __name__ == "__main__":

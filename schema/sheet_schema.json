@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "notes": "Contrato de la planilla de Google Sheets. El crawl crudo NO va a Sheets (tope de celdas): va como CSV a Drive/artifact y la planilla enlaza a él. write_mode: append acumula una fila por corrida; replace muestra solo la última corrida. La pestaña Config la mantiene la persona y el motor no la pisa.",
+  "version": 3,
+  "notes": "Contrato de la planilla de Google Sheets. El crawl crudo NO va a Sheets (tope de celdas): va como CSV a Drive/artifact y la planilla enlaza a él. write_mode: append acumula una fila por corrida; replace muestra solo la última corrida (más los issues resueltos, una sola vez). La pestaña Config la mantiene la persona y el motor no la pisa. Las columnas nuevas se agregaron AL FINAL para no mover las existentes.",
   "tabs": [
     {
       "name": "Config",
@@ -10,21 +10,21 @@
     },
     {
       "name": "Resumen",
-      "purpose": "Una fila por corrida con conteos por severidad.",
+      "purpose": "Una fila por corrida con conteos por severidad, puntaje y plataforma detectada.",
       "write_mode": "append",
       "columns": [
         "run_id", "fecha_utc", "dominio", "modo", "urls_rastreadas",
         "criticos", "altos", "medios", "bajos", "puntaje",
-        "delta_puntaje_vs_anterior", "link_csv_completo"
+        "delta_puntaje_vs_anterior", "link_csv_completo", "plataforma"
       ]
     },
     {
       "name": "Issues",
-      "purpose": "Issues de la última corrida, un issue por fila. El estado respecto de la corrida anterior llega en la fase 2.",
+      "purpose": "Issues de la última corrida, con estado respecto de la anterior. Los resueltos aparecen una sola vez.",
       "write_mode": "replace",
       "columns": [
         "run_id", "regla_id", "severidad", "categoria", "url", "detalle",
-        "arreglable_en_plataforma", "recomendacion", "primera_vez_visto", "estado"
+        "arreglable_en_plataforma", "recomendacion", "primera_vez_visto", "estado", "issue_key"
       ],
       "estado_values": ["nuevo", "recurrente", "resuelto"]
     },
@@ -52,5 +52,6 @@
     "medium": 2,
     "low": 1
   },
-  "score_formula": "Pendiente (fase 2). En la fase 1 la columna puntaje queda vacía a propósito: se fija una sola fórmula, documentada, para no cambiar el significado del histórico."
+  "score_scale": 2.0,
+  "score_formula": "puntaje = 100 * exp(-densidad / score_scale), con densidad = (suma de severity_weights de los issues white hat) / (URLs rastreadas). Está acotado entre 0 y 100, no depende del tamaño del sitio y excluye las señales de riesgo. score_scale es la perilla de calibración: cambiarla cambia el significado del histórico, así que se versiona acá."
 }

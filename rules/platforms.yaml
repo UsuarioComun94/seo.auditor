@@ -1,0 +1,36 @@
+# Limitaciones conocidas por plataforma, para llenar "arreglable_en_plataforma" en la planilla.
+#
+# IMPORTANTE: solo se listan límites de alta confianza. Que una regla NO figure acá no significa
+# que se pueda arreglar: significa que no hay dato. Estas capacidades cambian con el tiempo;
+# verificar en la ayuda oficial de la plataforma antes de prometerle algo a un cliente.
+# Para sumar una plataforma o un límite basta con editar este archivo.
+
+platforms:
+  google_sites:
+    label: Google Sites
+    limits:
+      TECH-005: "no hay noindex por página"
+      TECH-008: "no se puede editar el canonical"
+      TECH-009: "no se puede editar el canonical"
+      TECH-010: "no se puede editar robots.txt"
+  github_pages:
+    label: GitHub Pages
+    limits: {}
+  wordpress:
+    label: WordPress
+    limits: {}
+  shopify:
+    label: Shopify
+    limits: {}
+  wix:
+    label: Wix
+    limits: {}
+  tiendanube:
+    label: Tiendanube
+    limits: {}
+  squarespace:
+    label: Squarespace
+    limits: {}
+  webflow:
+    label: Webflow
+    limits: {}

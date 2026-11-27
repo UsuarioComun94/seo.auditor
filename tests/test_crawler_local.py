@@ -26,13 +26,36 @@ def test_fixture_recall_is_100_percent(fixture_run):
     base, result, issues = fixture_run
     report = check_expected(issues, EXPECTED, RULES, "own", base_url=base,
                             skip_rules={"TECH-011": "el servidor de test no usa HTTPS"})
-    assert report.checked >= 17
+    assert report.checked >= 20
     assert report.missing == [], f"no detectados: {report.missing}"
 
 
-def test_phase_2_and_5_rules_are_not_claimed_yet(fixture_run):
+def test_phase_2_rules_fire_and_phase_5_rules_do_not_yet(fixture_run):
     _, _, issues = fixture_run
-    assert not {i.rule_id for i in issues} & {"TECH-007", "SCH-001", "INT-001", "RSK-001", "RSK-002"}
+    found = {i.rule_id for i in issues}
+    assert {"TECH-007", "SCH-001", "INT-001"} <= found
+    assert not found & {"RSK-001", "RSK-002"}
+
+
+def test_fixture_phase_2_issues_hit_the_right_urls(fixture_run):
+    base, _, issues = fixture_run
+    by = {(i.rule_id, i.url) for i in issues}
+    assert ("TECH-007", base + "orphan.html") in by
+    assert ("SCH-001", base + "media.html") in by
+    assert ("INT-001", base + "lang-en.html") in by
+    # la página en español no declara hreflang propio: no se la acusa a ella
+    assert ("INT-001", base + "lang-es.html") not in by
+
+
+def test_only_the_planted_orphan_is_reported(fixture_run):
+    _, _, issues = fixture_run
+    orphans = [i.url.rsplit("/", 1)[-1] for i in issues if i.rule_id == "TECH-007"]
+    assert orphans == ["orphan.html"]
+
+
+def test_platform_is_not_invented_for_a_local_server(fixture_run):
+    _, result, _ = fixture_run
+    assert result.platform == ""
 
 
 def test_blocked_page_is_not_fetched(fixture_run):

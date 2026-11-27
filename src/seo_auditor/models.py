@@ -61,6 +61,7 @@ class CrawlResult:
     blocked_links: dict[str, set[str]] = field(default_factory=dict)  # url bloqueada -> páginas que la enlazan
     external: dict[str, int] = field(default_factory=dict)            # url externa -> status (0 = no responde)
     truncated: bool = False
+    platform: str = ""                   # "" = no detectada
     notes: list[str] = field(default_factory=list)
 
 

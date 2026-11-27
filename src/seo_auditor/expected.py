@@ -12,7 +12,7 @@ from .models import Issue
 from .rules import Rule
 from .urls import normalize_url
 
-MAX_PHASE = 1
+MAX_PHASE = 2
 
 
 @dataclass

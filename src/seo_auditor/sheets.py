@@ -114,10 +114,30 @@ class SheetsPublisher:
                     spreadsheetId=self.id, range=f"'{name}'!A1", valueInputOption="RAW",
                     insertDataOption="INSERT_ROWS", body={"values": rows}).execute()
 
-    def publish(self, tabs: dict[str, list[list]]) -> None:
-        self.ensure_tabs()
+    def read_previous(self, domain: str):
+        """Lee el estado de la corrida anterior (pestañas Issues e Historico) antes de escribir.
+
+        No se atrapan los errores de lectura a propósito: si falla, abortar es mejor que escribir
+        con estado vacío y perder el historial de issues (Issues se sobreescribe).
+        """
+        from .state import parse_previous
+
+        def rows(tab: str) -> list[list]:
+            ncols = len(self.tabs[tab]["columns"])
+            resp = self.svc.spreadsheets().values().get(
+                spreadsheetId=self.id, range=f"'{tab}'!A2:{_col(ncols)}").execute()
+            return resp.get("values", [])
+
+        return parse_previous(rows("Issues"), rows("Historico"), domain,
+                              self.tabs["Issues"]["columns"], self.tabs["Historico"]["columns"])
+
+    def write_all(self, tabs: dict[str, list[list]]) -> None:
         for name, rows in tabs.items():
             self.write_tab(name, rows)
+
+    def publish(self, tabs: dict[str, list[list]]) -> None:
+        self.ensure_tabs()
+        self.write_all(tabs)
 
 
 def _col(n: int) -> str:
