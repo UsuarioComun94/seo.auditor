@@ -1,133 +1,61 @@
 # seo.auditor
 
-Auditor SEO autónomo, multicliente y de costo $0. Rastrea un sitio, detecta problemas técnicos y on-page, marca señales de riesgo (grey/black hat) y reporta a una planilla de Google Sheets. Corre en GitHub Actions, sin servidores propios.
+**Auditor SEO autónomo, multicliente y de costo $0.** Rastrea un sitio, detecta problemas técnicos y on-page, marca señales de riesgo grey/black hat (solo detección) y reporta a Google Sheets. Corre solo en GitHub Actions, sin servidores ni APIs de pago.
 
-> Estado: **fase 2** (19 reglas técnicas, on-page, datos estructurados e internacional; puntaje; diff entre corridas; detección de plataforma; fixture con recall del 100%). Faltan: modo competidor completo (3), PageSpeed/Search Console (4) y señales de riesgo (5).
+> **English:** an autonomous, multi-client, zero-cost SEO auditing engine. It crawls a site, flags technical and on-page issues, detects grey/black-hat *risk signals* (detection only, never execution), measures performance (PageSpeed/CrUX) and Search Console gaps, and writes to Google Sheets. It runs on a GitHub Actions cron with no paid APIs. Competitor mode is enforced in code (robots.txt, polite delay, URL cap, honest user-agent). Docs below are in Spanish; the code, rule catalog and tests are self-explanatory.
+
+[Ver informe de demo](https://usuariocomun94.github.io/seo.auditor/demo/report.html) · [Caso de estudio](docs/CASE_STUDY.md) · [Guía de uso](docs/USAGE.md)
+
+![Informe de demo sobre el sitio de prueba](docs/img/demo-informe.png)
+
+*Informe generado contra un sitio de prueba público con errores plantados a propósito. No hay datos de clientes ni de sitios reales.*
+
+## Qué hace
+
+| Área | Detalle |
+|---|---|
+| Técnico | Enlaces rotos, cadenas y bucles de redirección, canonicals, noindex accidental, sitemap vs. realidad, páginas huérfanas, X-Robots-Tag |
+| On-page | Title, meta description, H1, duplicados, imágenes sin alt |
+| Datos estructurados e internacional | JSON-LD inválido, hreflang sin retorno |
+| Rendimiento | PageSpeed Insights (laboratorio) y CrUX (campo) con reglas de Core Web Vitals |
+| Search Console | Páginas sin impresiones, CTR bajo en top 10, URLs que Google conoce y el crawl no encontró |
+| Riesgo grey/black hat | Texto y enlaces ocultos, cloaking, spam saliente, páginas puerta: **solo detección**, fuera del puntaje |
+| Seguimiento | Puntaje de salud 0–100, diff entre corridas (nuevo / recurrente / resuelto), histórico |
+| Multi-sitio | Panel en Drive con configs privadas, pestañas Comparativa y Benchmark solo para el administrador |
+| Competencia | Modo `competitor` con límites validados por código ([ética](docs/ETHICS.md)) |
+| Sitios con JavaScript | Renderizado con Chromium, activado solo en plataformas que lo necesitan |
+
+## Decisiones de diseño que lo distinguen
+
+- **Mide contra una verdad conocida.** El sitio de prueba tiene errores plantados y un archivo de esperados: el crawler detecta 24 de 24, y las señales de riesgo aparecen solo donde se plantaron (sin falsos positivos en las demás páginas).
+- **Los límites se dicen en voz alta.** [`docs/LIMITS.md`](docs/LIMITS.md) separa lo que se puede, lo que no y lo que depende de la plataforma. Una celda vacía significa "no medible", nunca "0".
+- **Un número que falta no es un problema resuelto.** Si el crawl se trunca o PageSpeed no responde, los issues anteriores se conservan, no se marcan como arreglados.
+- **Seguridad pensada para un repo público.** Los logs públicos ocultan nombres, dominios e IDs; los pedidos del crawler y del navegador a redes privadas se bloquean; las planillas se escriben en modo `RAW` para evitar inyección de fórmulas. Ver [`docs/PRIVACY.md`](docs/PRIVACY.md).
+- **$0 de verdad.** GitHub Actions, Google Sheets/Drive/Search Console y las APIs gratuitas de PageSpeed y CrUX.
 
 ## Cómo funciona
 
 ```
-clients/*.yaml  ──►  GitHub Actions (cron / manual)  ──►  crawler Python
-                                                              │
-                         ┌────────────────────────────────────┤
-                         ▼                                    ▼
-              Google Sheets (resumen,                CSV completo del crawl
-              issues, histórico, riesgo)             en Google Drive
+Panel (Drive, privado) ──►  GitHub Actions (cron / manual)  ──►  crawler Python (+ Chromium si hace falta)
+                                                                      │
+                          ┌───────────────────────────────────────────┤
+                          ▼                                           ▼
+            Una planilla por sitio                         Panel: Comparativa y Benchmark
+   (Resumen, Issues, Histórico, Riesgo, Crawl,             (solo para el administrador)
+    Rendimiento, Search Console)
 ```
 
-- **Autónomo:** corre por cron y por ejecución manual, sin intervención.
-- **Multicliente:** una config YAML por cliente; las reglas son modulares (`rules/rules.yaml`).
-- **Sin APIs de pago.** Los límites reales están en [`docs/LIMITS.md`](docs/LIMITS.md).
-- **Auditoría de competencia sin infringir normas:** modo `competitor` con reglas validadas por código ([`docs/ETHICS.md`](docs/ETHICS.md)).
-- **Grey/black hat:** solo detección con evidencia y nivel de riesgo. No se ejecutan esas tácticas.
-
-## Estructura
-
-| Ruta | Contenido |
-|---|---|
-| `src/seo_auditor/` | Motor: config validada, crawler, reglas, reporte y publicación a Sheets. |
-| `rules/rules.yaml` | Catálogo de reglas: id, severidad, categoría, modos, fase. |
-| `rules/platforms.yaml` | Límites conocidos por plataforma (solo los de alta confianza). |
-| `schema/sheet_schema.json` | Contrato de las pestañas de la planilla. |
-| `clients/` | Una config por cliente. `_template.yaml` es la plantilla. |
-| `fixture/` | Sitio de prueba con errores plantados y `EXPECTED_ISSUES.yaml`. |
-| `.github/workflows/` | `audit.yml` (auditoría) y `pages.yml` (publica el fixture). |
-| `tests/` | Tests con pytest. |
-
-## Uso
+## Probalo en 2 minutos
 
 ```bash
 pip install -r requirements.txt && pip install -e .
-pytest                                                    # 80 tests, sin red (servidores locales)
-python -m seo_auditor --config clients/fixture.yaml --validate-only
+pytest                                    # sin red: usa servidores locales
 python -m seo_auditor --config clients/fixture.yaml --expected fixture/EXPECTED_ISSUES.yaml
-python -m seo_auditor --config clients/<cliente>.yaml --publish   # requiere GOOGLE_SERVICE_ACCOUNT_JSON
+python scripts/make_demo.py               # regenera el informe de demo
 ```
 
-Códigos de salida: 0 ok · 2 config inválida · 3 faltan issues esperados · 4 falló la publicación · 5 crawl abortado.
+La guía completa (modo Panel, secretos, Search Console, reglas, puntaje, diff entre corridas) está en [`docs/USAGE.md`](docs/USAGE.md).
 
-## Reglas implementadas (fases 1 y 2)
+## Estado
 
-TECH-001/002/003/004/005/006/007/008/009/010/011 · ONP-001/002/003/004/005/006 · SCH-001 · INT-001.
-El resto del catálogo (`rules/rules.yaml`, señales de riesgo) está definido pero se activa en su fase;
-el motor no reporta reglas que no implementa.
-
-## Puntaje
-
-`puntaje = 100 · exp(-densidad / 2)`, con `densidad = (suma de pesos por severidad) / (URLs rastreadas)`.
-Pesos: crítico 10, alto 5, medio 2, bajo 1. No depende del tamaño del sitio, está acotado entre 0 y 100 y
-excluye las señales de riesgo. La escala (`score_scale`) es la perilla de calibración y vive en
-`schema/sheet_schema.json`: cambiarla cambia el significado del histórico, así que se versiona ahí.
-
-## Diff entre corridas
-
-Antes de escribir, el motor lee `Issues` e `Historico` de la propia planilla. Cada issue lleva una clave
-estable (`issue_key`) y queda como **nuevo**, **recurrente** (conserva `primera_vez_visto`) o **resuelto**
-(aparece una sola vez). Con un crawl truncado por `max_urls` no se marca nada como resuelto: un issue
-ausente no prueba que se haya arreglado. Si la lectura falla, la publicación aborta en vez de escribir
-con estado vacío.
-
-## Privacidad
-
-Este repo es público. **No se versionan** configs reales de clientes ni resultados: las credenciales van en GitHub Secrets y los datos en Sheets y Drive. Las configs reales se guardan fuera del repo (o en un repo privado de configuración).
-
-## Plan por fases
-
-| Fase | Entregable |
-|---|---|
-| 0 | Repo, reglas, esquema de planilla, fixture, workflows base (hecha) |
-| 1 | Crawler base y salida a Sheets; el fixture detecta el 100% de los errores plantados (hecha) |
-| 2 | Huérfanas, JSON-LD, hreflang, plataforma, puntaje y diff entre corridas (hecha) |
-| 3 | Modo competidor y benchmark |
-| 4 | PageSpeed/CrUX y Search Console (solo sitios autorizados) |
-| 5 | Módulo de señales de riesgo |
-| 6 | Empaquetado: demo anonimizada y caso de estudio |
-
-
-## Modo Panel (varios sitios, datos en Drive)
-
-Las configs reales no van al repo: viven en la planilla **Panel** (pestaña `Clientes`, una fila por sitio; se leen por nombre de columna y solo corren las filas con `activo = TRUE`). Cada fila pasa por la misma validación que un YAML (modo `client` exige `autorizado`; `competitor` fuerza robots.txt, pausa ≥ 2 s y máx. 500 URLs).
-
-```
-python -m seo_auditor --panel --panel-id <ID> [--site all|<nombre>] [--validate-only]
-```
-En GitHub: secret `SEO_PANEL_ID`; el job `sitios` corre en el cron semanal o con `site` en el dispatch. Un sitio que falla no frena a los demás.
-
-- Pestaña **Crawl** en cada planilla de sitio: una fila por URL (status, indexable, title, canonical, inlinks, profundidad…), tope 10.000 filas.
-- Pestaña **Comparativa** del Panel: puntaje y conteos por sitio. `puntaje_comparable` usa solo reglas válidas en los tres modos, para comparar propio vs. competencia sin sesgo.
-- Pestaña **Benchmark** del Panel (fase 3): porcentajes y promedios por sitio (title, meta, H1 único, canonical, JSON-LD, alt en imágenes, indexables, en sitemap, profundidad, tiempos de respuesta, % de errores). Son relativos, así que sitios de distinto tamaño se comparan; celda vacía = no medible. Se calcula solo con lo público, igual para propio, cliente y competencia.
-- Privacidad: ver [docs/PRIVACY.md](docs/PRIVACY.md).
-
-### Renderizado de JavaScript (`render_js`)
-Para sitios que arman el HTML en el navegador (Google Sites, SPAs): poné `render_js = TRUE` en la fila del Panel (o `crawl.render_js: true` en el YAML). El crawler abre cada página en Chromium (Playwright), lee el DOM final y descubre enlaces que el HTML crudo no tiene.
-- Mismo user-agent identificable; cada render cuenta como un pedido más y respeta la pausa configurada; imágenes, fuentes y media no se descargan.
-- Anti-SSRF: los pedidos del navegador a hosts no públicos se abortan.
-- Si Chromium no está disponible, el crawl sigue con el HTML crudo y deja una nota.
-- Se activa solo en plataformas que arman el contenido con JavaScript (hoy: Google Sites), aunque la fila no lo pida.
-- Es más lento: en el resto, usalo solo en los sitios que lo necesitan.
-
-## Señales de riesgo (fase 5, solo detección)
-Pestaña **Riesgo**; no suman al puntaje. Son señales, no veredictos: revisalas a mano antes de actuar.
-
-| Regla | Qué detecta | Umbral conservador |
-|---|---|---|
-| RSK-001 | Texto oculto con relleno de keywords | ≥ 20 palabras ocultas y ≥ 40% repetidas |
-| RSK-002 | Enlaces externos ocultos | ≥ 3, excluyendo redes sociales y servicios conocidos |
-| RSK-003 | Cloaking: otro contenido para Googlebot | similitud de texto < 0,5 en una muestra de 30 páginas; solo `own`/`client` con `compare_googlebot_ua`; un 403 al bot no cuenta |
-| RSK-004 | Enlaces salientes con patrón de spam | patrón en el dominio o en el texto del enlace |
-| RSK-005 | Páginas puerta (doorway) | ≥ 5 páginas del mismo directorio con ≥ 85% de texto idéntico |
-
-Limitaciones: RSK-001/002 ven CSS en línea y el atributo `hidden`, no hojas de estilo externas; RSK-004 usa una lista corta de patrones, no una base de reputación de dominios.
-
-## Rendimiento y Search Console (fase 4, todo gratis)
-
-**PageSpeed Insights + CrUX** (cualquier modo; en `--panel` se activa solo, con `--config` usá `--pagespeed`; en el Panel, `pagespeed = FALSE` lo apaga):
-- Laboratorio (Lighthouse móvil simulado) de la home y las 4 páginas más enlazadas → pestaña **Rendimiento** (un historial por corrida) y columnas del **Benchmark**.
-- Campo (usuarios reales de Chrome, p75 del origen) vía API de CrUX: requiere la clave `PSI_API_KEY`. Sin clave se mide solo laboratorio, y si el sitio tiene poco tráfico Chrome no tiene datos.
-- Reglas `PERF-001..005` (LCP > 4 s, CLS > 0,25, INP > 500 ms / TBT > 600 ms, puntaje < 50, TTFB > 1,8 s). No entran al puntaje comparable (dependen de APIs externas).
-- Si PageSpeed no responde, los issues `PERF-*` anteriores se conservan como recurrentes: nunca se marcan "resueltos" por no haber podido medir.
-
-**Search Console** (solo `own`/`client`; columna `search_console` del Panel con `sc-domain:ejemplo.com` o la URL de la propiedad): hay que agregar el mail del service account como usuario de la propiedad.
-- Pestaña **Search Console**: páginas (top 5000) y consultas (top 1000) de los últimos 28 días, y si cada página está en el crawl.
-- `GSC-001` indexable sin impresiones · `GSC-002` muchas impresiones en top 10 con CTR muy bajo · `GSC-003` URL que Google conoce y el crawl no encontró (huérfana, mal enlazada o inexistente).
-- Si la API falla, la pestaña no se pisa y el resto de la auditoría sigue.
+Fases 0 a 6 completas. Limitaciones conocidas: el puntaje no está calibrado contra una muestra amplia de sitios reales (sirve para comparar corridas del mismo sitio); la detección de texto oculto ve CSS en línea, no hojas de estilo externas; la tabla de límites por plataforma incluye solo los casos de alta confianza.

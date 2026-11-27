@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "fixture/site/**"
+      - "docs/demo/**"
+      - "docs/img/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -26,8 +28,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: actions/configure-pages@v5
+      - name: Armar el sitio (fixture + demo del informe)
+        run: |
+          mkdir _site
+          cp -r fixture/site/. _site/
+          mkdir -p _site/demo
+          cp docs/demo/report.html _site/demo/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: fixture/site
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
