@@ -12,9 +12,10 @@ import defusedxml.ElementTree as ET
 from defusedxml.common import DefusedXmlException
 
 from .config import ClientConfig
-from .fetcher import Fetcher, is_public_host
+from .fetcher import DEFAULT_USER_AGENT, Fetcher, is_public_host
 from .models import CrawlResult, PageRecord
 from .parser import parse_html
+from .render import RenderUnavailable, Renderer
 from .platform import detect_platform
 from .urls import Scope, normalize_url, resolve
 
@@ -31,11 +32,16 @@ def _now() -> str:
 
 
 class Crawler:
-    def __init__(self, cfg: ClientConfig, fetcher: Fetcher | None = None, log=lambda msg: None):
+    def __init__(self, cfg: ClientConfig, fetcher: Fetcher | None = None, log=lambda msg: None,
+                 renderer: Renderer | None = None):
         self.cfg = cfg
         self.scope = Scope(cfg.domain)
         self.fetcher = fetcher or Fetcher(cfg.crawl.user_agent, cfg.crawl.delay_seconds)
         self.log = log
+        self.renderer = renderer if renderer is not None else (
+            Renderer(cfg.crawl.user_agent or DEFAULT_USER_AGENT) if cfg.crawl.render_js else None)
+        self.rendered_pages = 0
+        self.render_failures = 0
         self.robots = RobotFileParser()
         self.robots_loaded = False
         self.result = CrawlResult(name=cfg.name, domain=cfg.domain, mode=cfg.mode)
@@ -119,8 +125,23 @@ class Crawler:
         rec.is_html = res.text is not None and ("html" in ctype)
         if url == self.scope.root and res.status == 200 and res.text:
             self.result.platform = detect_platform(url, res.headers, res.text)
-        if rec.is_html and res.status == 200 and res.text:
-            parsed = parse_html(res.text, url)
+        html = res.text
+        if self.renderer and rec.is_html and res.status == 200 and res.text:
+            self.fetcher._wait()                 # el render es otro pedido: misma pausa de cortesía
+            self.fetcher.requests_made += 1
+            try:
+                rendered = self.renderer.render(url)
+            except RenderUnavailable as exc:
+                self.result.notes.append(f"render_js pedido pero no disponible: {exc}; se usa el HTML crudo")
+                self.renderer = None
+                rendered = None
+            if rendered:
+                html = rendered
+                self.rendered_pages += 1
+            elif self.renderer:
+                self.render_failures += 1
+        if rec.is_html and res.status == 200 and html:
+            parsed = parse_html(html, url)
             rec.title = parsed.title
             rec.meta_description = parsed.meta_description
             rec.meta_robots = parsed.meta_robots
@@ -190,6 +211,10 @@ class Crawler:
             if rec.redirect_to and self.scope.contains(rec.redirect_to):
                 enqueue(rec.redirect_to, depth + 1, url)
 
+        if self.renderer:
+            self.renderer.close()
+            r.notes.append(f"JavaScript renderizado en {self.rendered_pages} páginas"
+                           + (f" ({self.render_failures} fallaron y usaron el HTML crudo)" if self.render_failures else ""))
         if self.cfg.mode != "competitor":
             self._check_externals()
         r.finished_at = _now()

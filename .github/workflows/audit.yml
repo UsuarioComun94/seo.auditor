@@ -47,6 +47,8 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: pip install -e .
+      - name: Chromium para renderizar JavaScript
+        run: python -m playwright install --with-deps chromium
       - name: Tests
         run: pytest -q
 
@@ -108,6 +110,8 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: pip install -e .
+      - name: Chromium para renderizar JavaScript
+        run: python -m playwright install --with-deps chromium
       - name: Auditar sitios del Panel
         run: |
           if [ -z "$SEO_PANEL_ID" ]; then

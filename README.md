@@ -97,3 +97,10 @@ En GitHub: secret `SEO_PANEL_ID`; el job `sitios` corre en el cron semanal o con
 - Pestaña **Comparativa** del Panel: puntaje y conteos por sitio. `puntaje_comparable` usa solo reglas válidas en los tres modos, para comparar propio vs. competencia sin sesgo.
 - Pestaña **Benchmark** del Panel (fase 3): porcentajes y promedios por sitio (title, meta, H1 único, canonical, JSON-LD, alt en imágenes, indexables, en sitemap, profundidad, tiempos de respuesta, % de errores). Son relativos, así que sitios de distinto tamaño se comparan; celda vacía = no medible. Se calcula solo con lo público, igual para propio, cliente y competencia.
 - Privacidad: ver [docs/PRIVACY.md](docs/PRIVACY.md).
+
+### Renderizado de JavaScript (`render_js`)
+Para sitios que arman el HTML en el navegador (Google Sites, SPAs): poné `render_js = TRUE` en la fila del Panel (o `crawl.render_js: true` en el YAML). El crawler abre cada página en Chromium (Playwright), lee el DOM final y descubre enlaces que el HTML crudo no tiene.
+- Mismo user-agent identificable; cada render cuenta como un pedido más y respeta la pausa configurada; imágenes, fuentes y media no se descargan.
+- Anti-SSRF: los pedidos del navegador a hosts no públicos se abortan.
+- Si Chromium no está disponible, el crawl sigue con el HTML crudo y deja una nota.
+- Es más lento: usalo solo en los sitios que lo necesitan.
