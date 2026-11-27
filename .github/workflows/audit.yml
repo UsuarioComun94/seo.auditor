@@ -11,6 +11,10 @@ on:
         description: "Publicar a Google Sheets y Drive"
         type: boolean
         default: true
+      site:
+        description: "Sitios del Panel (Drive): all, o el nombre de uno. Vacío = no corre el job de sitios"
+        required: false
+        default: ""
   schedule:
     # Semanal, lunes 09:00 UTC. Corre sobre el fixture hasta que haya configs de clientes.
     - cron: "0 9 * * 1"
@@ -84,3 +88,30 @@ jobs:
           path: output/
           retention-days: 30
           if-no-files-found: ignore
+
+  sitios:
+    # Sitios reales (propios, clientes, competencia) leídos del Panel en Drive. El repo es público y los
+    # logs también: el motor oculta nombres, dominios e IDs con ::add-mask:: y acá NO se suben artifacts.
+    needs: test
+    if: github.event_name == 'schedule' || github.event.inputs.site != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SEO_PANEL_ID: ${{ secrets.SEO_PANEL_ID }}
+      SITE: ${{ github.event.inputs.site || 'all' }}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pip install -e .
+      - name: Auditar sitios del Panel
+        run: |
+          if [ -z "$SEO_PANEL_ID" ]; then
+            echo "Falta el secret SEO_PANEL_ID: se omite el job de sitios."
+            exit 0
+          fi
+          python -m seo_auditor --panel --site "$SITE" --output-dir /tmp/seo-out

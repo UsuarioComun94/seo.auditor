@@ -39,6 +39,29 @@ def _row(columns: list[str], values: dict) -> list:
     return [values.get(col, "") for col in columns]
 
 
+def _inlink_counts(result: CrawlResult) -> Counter:
+    counts: Counter = Counter()
+    for p in result.pages.values():
+        for link in set(p.links):
+            if link in result.pages:
+                counts[link] += 1
+    return counts
+
+
+def crawl_rows(result: CrawlResult, columns: list[str], cap: int) -> list[list]:
+    """Filas de la pestaña Crawl: una por URL rastreada, hasta `cap`."""
+    inlinks = _inlink_counts(result)
+    rows = []
+    for p in list(result.pages.values())[:cap]:
+        rows.append(_row(columns, {
+            "url": p.url, "status": p.status, "redirect_to": p.redirect_to, "indexable": p.indexable,
+            "title": p.title or "", "meta_description": p.meta_description or "", "h1_count": p.h1_count,
+            "canonical": p.canonical or "", "in_sitemap": p.in_sitemap, "inlinks": inlinks.get(p.url, 0),
+            "depth": p.depth, "response_ms": p.response_ms, "x_robots_tag": p.x_robots_tag,
+        }))
+    return rows
+
+
 def build_tabs(result: CrawlResult, issues: list[Issue], run_id: str, csv_link: str = "",
                schema: dict | None = None, previous: PreviousState | None = None,
                score: float | None = None, delta: float | None = None,
@@ -50,13 +73,18 @@ def build_tabs(result: CrawlResult, issues: list[Issue], run_id: str, csv_link: 
     counts = count_by_severity(issues)
     when = result.finished_at or result.started_at
 
+    cap = schema.get("crawl_row_cap", 10000)
+    link_text = csv_link
+    if len(result.pages) > cap:
+        link_text = f"{csv_link} | Crawl en Sheets: {cap} de {len(result.pages)} URLs".strip(" |")
+
     summary = {
         "run_id": run_id, "fecha_utc": when, "dominio": result.domain, "modo": result.mode,
         "urls_rastreadas": len(result.pages),
         "criticos": counts["critical"], "altos": counts["high"], "medios": counts["medium"], "bajos": counts["low"],
         "puntaje": "" if score is None else score,
         "delta_puntaje_vs_anterior": "" if delta is None else delta,
-        "link_csv_completo": csv_link,
+        "link_csv_completo": link_text,
         "plataforma": platform_label(platforms, result.platform) if result.platform else "",
     }
     history = {k: summary[k] for k in ("run_id", "fecha_utc", "dominio", "puntaje", "criticos", "altos",
@@ -97,6 +125,7 @@ def build_tabs(result: CrawlResult, issues: list[Issue], run_id: str, csv_link: 
         "Historico": [_row(cols["Historico"], history)],
         "Issues": issue_rows,
         "Riesgo": risk_rows,
+        "Crawl": crawl_rows(result, cols["Crawl"], cap),
     }
 
 
@@ -119,11 +148,7 @@ def write_local(output_dir: str | Path, result: CrawlResult, issues: list[Issue]
     out = Path(output_dir) / result.name / run_id
     out.mkdir(parents=True, exist_ok=True)
 
-    inlinks: Counter = Counter()
-    for p in result.pages.values():
-        for link in set(p.links):
-            if link in result.pages:
-                inlinks[link] += 1
+    inlinks = _inlink_counts(result)
 
     pages_header = ["url", "status", "redirect_to", "redirect_kind", "indexable", "noindex", "title",
                     "meta_description", "h1_count", "canonical", "in_sitemap", "inlinks", "depth",

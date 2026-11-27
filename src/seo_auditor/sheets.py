@@ -19,6 +19,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 CREDENTIALS_ENV = "GOOGLE_SERVICE_ACCOUNT_JSON"
+CHUNK_ROWS = 1000  # filas por pedido: evita payloads grandes con la pestaña Crawl
 
 
 class PublishError(RuntimeError):
@@ -98,6 +99,21 @@ class SheetsPublisher:
             self.svc.spreadsheets().batchUpdate(spreadsheetId=self.id, body={"requests": fmt}).execute()
 
     # ---------- escritura ----------
+    def _ensure_rows(self, name: str, needed: int) -> None:
+        """values.update no expande la hoja: una planilla nueva trae 1000 filas, así que se agranda antes."""
+        meta = self.svc.spreadsheets().get(
+            spreadsheetId=self.id, fields="sheets.properties(sheetId,title,gridProperties)").execute()
+        for s in meta.get("sheets", []):
+            props = s["properties"]
+            if props.get("title") == name:
+                current = props.get("gridProperties", {}).get("rowCount")
+                if current is not None and current < needed:
+                    self.svc.spreadsheets().batchUpdate(spreadsheetId=self.id, body={"requests": [
+                        {"updateSheetProperties": {
+                            "properties": {"sheetId": props["sheetId"], "gridProperties": {"rowCount": needed + 100}},
+                            "fields": "gridProperties.rowCount"}}]}).execute()
+                return
+
     def write_tab(self, name: str, rows: list[list]) -> None:
         tab = self.tabs[name]
         mode = tab.get("write_mode", "append")
@@ -106,13 +122,16 @@ class SheetsPublisher:
             self.svc.spreadsheets().values().clear(
                 spreadsheetId=self.id, range=f"'{name}'!A2:{_col(width)}", body={}).execute()
             if rows:
+                self._ensure_rows(name, len(rows) + 1)
+            for start in range(0, len(rows), CHUNK_ROWS):
                 self.svc.spreadsheets().values().update(
-                    spreadsheetId=self.id, range=f"'{name}'!A2", valueInputOption="RAW", body={"values": rows}).execute()
+                    spreadsheetId=self.id, range=f"'{name}'!A{2 + start}", valueInputOption="RAW",
+                    body={"values": rows[start:start + CHUNK_ROWS]}).execute()
         else:
-            if rows:
+            for start in range(0, len(rows), CHUNK_ROWS):
                 self.svc.spreadsheets().values().append(
                     spreadsheetId=self.id, range=f"'{name}'!A1", valueInputOption="RAW",
-                    insertDataOption="INSERT_ROWS", body={"values": rows}).execute()
+                    insertDataOption="INSERT_ROWS", body={"values": rows[start:start + CHUNK_ROWS]}).execute()
 
     def read_previous(self, domain: str):
         """Lee el estado de la corrida anterior (pestañas Issues e Historico) antes de escribir.

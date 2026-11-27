@@ -1,21 +1,35 @@
 {
-  "version": 3,
-  "notes": "Contrato de la planilla de Google Sheets. El crawl crudo NO va a Sheets (tope de celdas): va como CSV a Drive/artifact y la planilla enlaza a él. write_mode: append acumula una fila por corrida; replace muestra solo la última corrida (más los issues resueltos, una sola vez). La pestaña Config la mantiene la persona y el motor no la pisa. Las columnas nuevas se agregaron AL FINAL para no mover las existentes.",
+  "version": 4,
+  "notes": "Contrato de la planilla de Google Sheets. write_mode: append acumula una fila por corrida; replace muestra solo la última corrida (más los issues resueltos, una sola vez); manual la mantiene la persona. Las columnas y pestañas nuevas se agregaron AL FINAL para no mover las existentes. La pestaña Crawl guarda la última corrida completa hasta crawl_row_cap URLs: es la copia del crudo dentro de Drive. La sección panel define la planilla maestra (solo del administrador).",
   "tabs": [
     {
       "name": "Config",
       "purpose": "Parámetros del cliente.",
       "write_mode": "manual",
-      "columns": ["clave", "valor", "descripcion"]
+      "columns": [
+        "clave",
+        "valor",
+        "descripcion"
+      ]
     },
     {
       "name": "Resumen",
       "purpose": "Una fila por corrida con conteos por severidad, puntaje y plataforma detectada.",
       "write_mode": "append",
       "columns": [
-        "run_id", "fecha_utc", "dominio", "modo", "urls_rastreadas",
-        "criticos", "altos", "medios", "bajos", "puntaje",
-        "delta_puntaje_vs_anterior", "link_csv_completo", "plataforma"
+        "run_id",
+        "fecha_utc",
+        "dominio",
+        "modo",
+        "urls_rastreadas",
+        "criticos",
+        "altos",
+        "medios",
+        "bajos",
+        "puntaje",
+        "delta_puntaje_vs_anterior",
+        "link_csv_completo",
+        "plataforma"
       ]
     },
     {
@@ -23,18 +37,38 @@
       "purpose": "Issues de la última corrida, con estado respecto de la anterior. Los resueltos aparecen una sola vez.",
       "write_mode": "replace",
       "columns": [
-        "run_id", "regla_id", "severidad", "categoria", "url", "detalle",
-        "arreglable_en_plataforma", "recomendacion", "primera_vez_visto", "estado", "issue_key"
+        "run_id",
+        "regla_id",
+        "severidad",
+        "categoria",
+        "url",
+        "detalle",
+        "arreglable_en_plataforma",
+        "recomendacion",
+        "primera_vez_visto",
+        "estado",
+        "issue_key"
       ],
-      "estado_values": ["nuevo", "recurrente", "resuelto"]
+      "estado_values": [
+        "nuevo",
+        "recurrente",
+        "resuelto"
+      ]
     },
     {
       "name": "Historico",
       "purpose": "Serie temporal para ver tendencia entre corridas.",
       "write_mode": "append",
       "columns": [
-        "run_id", "fecha_utc", "dominio", "puntaje",
-        "criticos", "altos", "medios", "bajos", "urls_rastreadas"
+        "run_id",
+        "fecha_utc",
+        "dominio",
+        "puntaje",
+        "criticos",
+        "altos",
+        "medios",
+        "bajos",
+        "urls_rastreadas"
       ]
     },
     {
@@ -42,7 +76,32 @@
       "purpose": "Señales grey/black hat de la última corrida. Solo detección, con evidencia.",
       "write_mode": "replace",
       "columns": [
-        "run_id", "regla_id", "nivel_riesgo", "url", "evidencia", "referencia_politica"
+        "run_id",
+        "regla_id",
+        "nivel_riesgo",
+        "url",
+        "evidencia",
+        "referencia_politica"
+      ]
+    },
+    {
+      "name": "Crawl",
+      "purpose": "Última corrida, una fila por URL rastreada (hasta crawl_row_cap). El crudo completo, si excede el tope, va como artifact en el fixture.",
+      "write_mode": "replace",
+      "columns": [
+        "url",
+        "status",
+        "redirect_to",
+        "indexable",
+        "title",
+        "meta_description",
+        "h1_count",
+        "canonical",
+        "in_sitemap",
+        "inlinks",
+        "depth",
+        "response_ms",
+        "x_robots_tag"
       ]
     }
   ],
@@ -53,5 +112,46 @@
     "low": 1
   },
   "score_scale": 2.0,
-  "score_formula": "puntaje = 100 * exp(-densidad / score_scale), con densidad = (suma de severity_weights de los issues white hat) / (URLs rastreadas). Está acotado entre 0 y 100, no depende del tamaño del sitio y excluye las señales de riesgo. score_scale es la perilla de calibración: cambiarla cambia el significado del histórico, así que se versiona acá."
+  "score_formula": "puntaje = 100 * exp(-densidad / score_scale), con densidad = (suma de severity_weights de los issues white hat) / (URLs rastreadas). Está acotado entre 0 y 100, no depende del tamaño del sitio y excluye las señales de riesgo. score_scale es la perilla de calibración: cambiarla cambia el significado del histórico, así que se versiona acá. puntaje_comparable usa la misma fórmula pero solo con las reglas que corren en TODOS los modos (own, client y competitor): sirve para comparar sitios propios contra competidores sin ventaja por medir menos.",
+  "crawl_row_cap": 10000,
+  "panel": {
+    "notes": "Planilla maestra del administrador. Clientes la mantiene la persona (una fila por sitio); Comparativa la escribe el motor (una fila por sitio, se actualiza por nombre). Nunca se comparte con clientes.",
+    "tabs": [
+      {
+        "name": "Clientes",
+        "write_mode": "manual",
+        "columns": [
+          "nombre",
+          "dominio",
+          "modo",
+          "autorizado",
+          "max_urls",
+          "delay_seconds",
+          "render_js",
+          "robots_url",
+          "spreadsheet_id",
+          "activo",
+          "notas"
+        ]
+      },
+      {
+        "name": "Comparativa",
+        "write_mode": "upsert",
+        "columns": [
+          "nombre",
+          "dominio",
+          "modo",
+          "ultima_corrida_utc",
+          "urls_rastreadas",
+          "puntaje",
+          "puntaje_comparable",
+          "criticos",
+          "altos",
+          "medios",
+          "bajos",
+          "plataforma"
+        ]
+      }
+    ]
+  }
 }

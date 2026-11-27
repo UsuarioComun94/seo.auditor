@@ -82,3 +82,17 @@ Este repo es público. **No se versionan** configs reales de clientes ni resulta
 | 4 | PageSpeed/CrUX y Search Console (solo sitios autorizados) |
 | 5 | Módulo de señales de riesgo |
 | 6 | Empaquetado: demo anonimizada y caso de estudio |
+
+
+## Modo Panel (varios sitios, datos en Drive)
+
+Las configs reales no van al repo: viven en la planilla **Panel** (pestaña `Clientes`, una fila por sitio; se leen por nombre de columna y solo corren las filas con `activo = TRUE`). Cada fila pasa por la misma validación que un YAML (modo `client` exige `autorizado`; `competitor` fuerza robots.txt, pausa ≥ 2 s y máx. 500 URLs).
+
+```
+python -m seo_auditor --panel --panel-id <ID> [--site all|<nombre>] [--validate-only]
+```
+En GitHub: secret `SEO_PANEL_ID`; el job `sitios` corre en el cron semanal o con `site` en el dispatch. Un sitio que falla no frena a los demás.
+
+- Pestaña **Crawl** en cada planilla de sitio: una fila por URL (status, indexable, title, canonical, inlinks, profundidad…), tope 10.000 filas.
+- Pestaña **Comparativa** del Panel: puntaje y conteos por sitio. `puntaje_comparable` usa solo reglas válidas en los tres modos, para comparar propio vs. competencia sin sesgo.
+- Privacidad: ver [docs/PRIVACY.md](docs/PRIVACY.md).

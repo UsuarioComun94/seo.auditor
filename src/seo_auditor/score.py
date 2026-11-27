@@ -23,3 +23,17 @@ def compute_score(issues: list[Issue], urls_crawled: int, weights: dict[str, int
     penalty = sum(weights.get(i.severity, 0) for i in issues if i.hat == "white")
     density = penalty / max(urls_crawled, 1)
     return round(100.0 * math.exp(-density / scale), 1)
+
+
+ALL_MODES = {"own", "client", "competitor"}
+
+
+def comparable_rule_ids(rules: dict) -> set[str]:
+    """Reglas que corren en TODOS los modos: la base para comparar sitios propios con ajenos."""
+    return {r.id for r in rules.values() if set(r.modes) >= ALL_MODES}
+
+
+def compute_comparable_score(issues: list[Issue], urls_crawled: int, weights: dict, rules: dict,
+                             scale: float = DEFAULT_SCALE) -> float:
+    ids = comparable_rule_ids(rules)
+    return compute_score([i for i in issues if i.rule_id in ids], urls_crawled, weights, scale)
