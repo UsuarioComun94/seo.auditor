@@ -103,4 +103,5 @@ Para sitios que arman el HTML en el navegador (Google Sites, SPAs): poné `rende
 - Mismo user-agent identificable; cada render cuenta como un pedido más y respeta la pausa configurada; imágenes, fuentes y media no se descargan.
 - Anti-SSRF: los pedidos del navegador a hosts no públicos se abortan.
 - Si Chromium no está disponible, el crawl sigue con el HTML crudo y deja una nota.
-- Es más lento: usalo solo en los sitios que lo necesitan.
+- Se activa solo en plataformas que arman el contenido con JavaScript (hoy: Google Sites), aunque la fila no lo pida.
+- Es más lento: en el resto, usalo solo en los sitios que lo necesitan.

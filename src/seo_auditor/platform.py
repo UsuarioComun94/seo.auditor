@@ -15,6 +15,9 @@ import yaml
 
 from .rules import default_rules_path
 
+# Plataformas que arman el contenido en el navegador: sin renderizar, el HTML crudo está casi vacío.
+JS_RENDERED_PLATFORMS = {"google_sites"}
+
 _GENERATOR_RE = re.compile(r"""<meta[^>]+name=["']generator["'][^>]*content=["']([^"']+)""", re.IGNORECASE)
 
 

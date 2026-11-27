@@ -105,3 +105,26 @@ def test_missing_playwright_degrades_to_raw_html(js_site):
     res = Crawler(cfg_for(js_site, True), renderer=Broken("t")).run()
     assert len(res.pages) == 1
     assert any("no disponible" in n for n in res.notes)
+
+
+def test_js_platform_turns_rendering_on_automatically(js_site, monkeypatch):
+    import seo_auditor.crawler as crawler_mod
+
+    calls = []
+
+    class FakeRenderer:
+        def __init__(self, ua):
+            pass
+
+        def render(self, url):
+            calls.append(url)
+            return "<html><head><title>Renderizado</title></head><body><h1>x</h1></body></html>"
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(crawler_mod, "Renderer", FakeRenderer)
+    monkeypatch.setattr(crawler_mod, "detect_platform", lambda *a, **k: "google_sites")
+    res = Crawler(cfg_for(js_site, False)).run()      # render_js apagado en la config
+    assert calls and res.pages[js_site].title == "Renderizado"
+    assert any("automáticamente" in n for n in res.notes)

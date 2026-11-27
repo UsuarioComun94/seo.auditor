@@ -16,7 +16,7 @@ from .fetcher import DEFAULT_USER_AGENT, Fetcher, is_public_host
 from .models import CrawlResult, PageRecord
 from .parser import parse_html
 from .render import RenderUnavailable, Renderer
-from .platform import detect_platform
+from .platform import JS_RENDERED_PLATFORMS, detect_platform
 from .urls import Scope, normalize_url, resolve
 
 MAX_EXTERNAL_CHECKS = 200
@@ -40,6 +40,7 @@ class Crawler:
         self.log = log
         self.renderer = renderer if renderer is not None else (
             Renderer(cfg.crawl.user_agent or DEFAULT_USER_AGENT) if cfg.crawl.render_js else None)
+        self.auto_render_off = False
         self.rendered_pages = 0
         self.render_failures = 0
         self.robots = RobotFileParser()
@@ -126,6 +127,10 @@ class Crawler:
         if url == self.scope.root and res.status == 200 and res.text:
             self.result.platform = detect_platform(url, res.headers, res.text)
         html = res.text
+        if (not self.renderer and not self.auto_render_off and self.result.platform in JS_RENDERED_PLATFORMS
+                and url == self.scope.root):
+            self.renderer = Renderer(self.cfg.crawl.user_agent or DEFAULT_USER_AGENT)
+            self.result.notes.append("la plataforma arma el contenido con JavaScript: se activó el renderizado automáticamente")
         if self.renderer and rec.is_html and res.status == 200 and res.text:
             self.fetcher._wait()                 # el render es otro pedido: misma pausa de cortesía
             self.fetcher.requests_made += 1
@@ -134,6 +139,7 @@ class Crawler:
             except RenderUnavailable as exc:
                 self.result.notes.append(f"render_js pedido pero no disponible: {exc}; se usa el HTML crudo")
                 self.renderer = None
+                self.auto_render_off = True
                 rendered = None
             if rendered:
                 html = rendered
