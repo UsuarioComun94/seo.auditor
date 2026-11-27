@@ -128,6 +128,7 @@
           "max_urls",
           "delay_seconds",
           "render_js",
+          "comparar_googlebot",
           "robots_url",
           "spreadsheet_id",
           "activo",

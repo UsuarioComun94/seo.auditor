@@ -225,3 +225,13 @@ def test_panel_run_fills_benchmark(panel_env, tmp_path, capsys):
     capsys.readouterr()
     rows = panel_env.books["P"]["Benchmark"]
     assert [r[0] for r in rows[1:]] == ["Uno"] and rows[1][1] == "own"
+
+
+def test_comparar_googlebot_is_optional_and_forbidden_for_competitors():
+    header = HEADER + ["comparar_googlebot"]
+    [ok] = parse_clients(header, [row() + ["TRUE"]])
+    assert ok.cfg.crawl.compare_googlebot_ua is True
+    [bad] = parse_clients(header, [row(modo="competitor") + ["TRUE"]])
+    assert bad.cfg is None and bad.errors
+    [none] = parse_clients(HEADER, [row()])               # sin la columna: apagado
+    assert none.cfg.crawl.compare_googlebot_ua is False

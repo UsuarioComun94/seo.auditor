@@ -80,6 +80,7 @@ def parse_clients(header: list, rows: list[list]) -> list[SiteEntry]:
                 "respect_robots": True,
                 "user_agent": DEFAULT_USER_AGENT,
                 "render_js": _truthy(row.get("render_js", "")),
+                "compare_googlebot_ua": _truthy(row.get("comparar_googlebot", "")),
                 "robots_url": str(row.get("robots_url", "")).strip(),
             }
         except ValueError as exc:
