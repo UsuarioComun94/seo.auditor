@@ -162,3 +162,27 @@ def test_sitemap_pointing_to_another_host_is_never_fetched(behavior_server):
     c._read_sitemaps()
     assert not any("169.254" in u for u in seen)
     assert any("otro host" in n for n in c.result.notes)
+
+
+def test_sitemap_on_another_host_is_never_fetched(behavior_server):
+    """robots.txt con `Sitemap:` hacia otro host (p. ej. el endpoint de metadatos de la nube) no se consulta."""
+    from seo_auditor.crawler import Crawler
+    import seo_auditor.fetcher as fmod
+    base = behavior_server.origin + "/" if hasattr(behavior_server, "origin") else behavior_server
+    fetched = []
+    real_get = fmod.Fetcher.get
+
+    def spy(self, url, *a, **k):
+        fetched.append(url)
+        return real_get(self, url, *a, **k)
+
+    cfg = local_config(base, "own")
+    crawler = Crawler(cfg)
+    crawler.robots_loaded = True
+    crawler.robots.parse(["User-agent: *", "Allow: /", "Sitemap: http://169.254.169.254/latest/meta-data/"])
+    import pytest as _pt
+    with _pt.MonkeyPatch.context() as mp:
+        mp.setattr(fmod.Fetcher, "get", spy)
+        crawler._read_sitemaps()
+    assert not any("169.254" in u for u in fetched)
+    assert any("otro host" in n for n in crawler.result.notes)
