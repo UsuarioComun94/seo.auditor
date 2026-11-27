@@ -115,7 +115,7 @@
   "score_formula": "puntaje = 100 * exp(-densidad / score_scale), con densidad = (suma de severity_weights de los issues white hat) / (URLs rastreadas). Está acotado entre 0 y 100, no depende del tamaño del sitio y excluye las señales de riesgo. score_scale es la perilla de calibración: cambiarla cambia el significado del histórico, así que se versiona acá. puntaje_comparable usa la misma fórmula pero solo con las reglas que corren en TODOS los modos (own, client y competitor): sirve para comparar sitios propios contra competidores sin ventaja por medir menos.",
   "crawl_row_cap": 10000,
   "panel": {
-    "notes": "Planilla maestra del administrador. Clientes la mantiene la persona (una fila por sitio); Comparativa la escribe el motor (una fila por sitio, se actualiza por nombre). Nunca se comparte con clientes.",
+    "notes": "Planilla maestra del administrador. Clientes la mantiene la persona (una fila por sitio); Comparativa la escribe el motor (una fila por sitio, se actualiza por nombre). Nunca se comparte con clientes. Benchmark: porcentajes y promedios del crawl público por sitio, comparables entre propio, cliente y competencia (celda vacía = no medible).",
     "tabs": [
       {
         "name": "Clientes",
@@ -150,6 +150,34 @@
           "medios",
           "bajos",
           "plataforma"
+        ]
+      },
+      {
+        "name": "Benchmark",
+        "write_mode": "upsert",
+        "columns": [
+          "nombre",
+          "modo",
+          "ultima_corrida_utc",
+          "paginas_html",
+          "pct_title",
+          "pct_meta_desc",
+          "pct_h1_unico",
+          "pct_canonical",
+          "pct_schema_jsonld",
+          "pct_imagenes_con_alt",
+          "pct_indexables",
+          "pct_en_sitemap",
+          "pct_con_hreflang",
+          "profundidad_media",
+          "profundidad_max",
+          "ms_mediana",
+          "ms_p90",
+          "enlaces_internos_medios",
+          "pct_errores_4xx_5xx",
+          "tiene_robots",
+          "tiene_sitemap",
+          "truncado"
         ]
       }
     ]

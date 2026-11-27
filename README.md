@@ -95,4 +95,5 @@ En GitHub: secret `SEO_PANEL_ID`; el job `sitios` corre en el cron semanal o con
 
 - Pestaña **Crawl** en cada planilla de sitio: una fila por URL (status, indexable, title, canonical, inlinks, profundidad…), tope 10.000 filas.
 - Pestaña **Comparativa** del Panel: puntaje y conteos por sitio. `puntaje_comparable` usa solo reglas válidas en los tres modos, para comparar propio vs. competencia sin sesgo.
+- Pestaña **Benchmark** del Panel (fase 3): porcentajes y promedios por sitio (title, meta, H1 único, canonical, JSON-LD, alt en imágenes, indexables, en sitemap, profundidad, tiempos de respuesta, % de errores). Son relativos, así que sitios de distinto tamaño se comparan; celda vacía = no medible. Se calcula solo con lo público, igual para propio, cliente y competencia.
 - Privacidad: ver [docs/PRIVACY.md](docs/PRIVACY.md).

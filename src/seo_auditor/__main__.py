@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 from . import __version__
+from .benchmark import compute_benchmark
 from .checks import run_checks
 from .config import ClientConfig, ConfigError, load_config
 from .crawler import CrawlAbort, Crawler
@@ -222,10 +223,13 @@ def run_panel(args, ctx: Context) -> int:
         "bajos": o.counts["low"],
         "plataforma": platform_label(ctx.platforms, o.result.platform) if o.result.platform else "",
     } for o in outcomes if o.result is not None]
+    bench = [{"nombre": o.cfg.name, "modo": o.cfg.mode, "ultima_corrida_utc": o.result.finished_at,
+              **compute_benchmark(o.result)} for o in outcomes if o.result is not None]
     if rows:
         try:
             panel.upsert_comparativa(rows)
-            print(f"Comparativa actualizada ({len(rows)} sitio(s))")
+            panel.upsert_benchmark(bench)
+            print(f"Comparativa y Benchmark actualizados ({len(rows)} sitio(s))")
         except Exception as exc:  # noqa: BLE001
             print(f"ERROR: no se pudo actualizar la Comparativa: {type(exc).__name__}: {str(exc)[:300]}", file=sys.stderr)
             code = max(code, 4)

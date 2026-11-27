@@ -126,13 +126,15 @@ class SheetsPanel:
             if first["title"] not in self.tabs:
                 requests.append({"updateSheetProperties": {
                     "properties": {"sheetId": first["sheetId"], "title": "Clientes"}, "fields": "title"}})
-        if "Comparativa" not in existing:
-            requests.append({"addSheet": {"properties": {"title": "Comparativa"}}})
+        for name in ("Comparativa", "Benchmark"):
+            if name not in existing:
+                requests.append({"addSheet": {"properties": {"title": name}}})
         if requests:
             self.svc.spreadsheets().batchUpdate(spreadsheetId=self.id, body={"requests": requests}).execute()
-        self.svc.spreadsheets().values().update(
-            spreadsheetId=self.id, range="'Comparativa'!A1", valueInputOption="RAW",
-            body={"values": [self.tabs["Comparativa"]["columns"]]}).execute()
+        for name in ("Comparativa", "Benchmark"):
+            self.svc.spreadsheets().values().update(
+                spreadsheetId=self.id, range=f"'{name}'!A1", valueInputOption="RAW",
+                body={"values": [self.tabs[name]["columns"]]}).execute()
 
     def read_clients(self) -> list[SiteEntry]:
         values = self._values("'Clientes'!A1:Z")
@@ -141,20 +143,29 @@ class SheetsPanel:
         return parse_clients(values[0], values[1:])
 
     def upsert_comparativa(self, rows: list[dict]) -> None:
-        """Actualiza por nombre las filas de los sitios auditados; conserva las demás."""
-        columns = self.tabs["Comparativa"]["columns"]
-        existing = self._values(f"'Comparativa'!A2:{_col(len(columns))}")
+        self.upsert("Comparativa", rows)
+
+    def upsert_benchmark(self, rows: list[dict]) -> None:
+        self.upsert("Benchmark", rows)
+
+    def upsert(self, tab: str, rows: list[dict]) -> None:
+        """Actualiza por nombre las filas de los sitios auditados; conserva las demás.
+
+        None se escribe como celda vacía (no medible), nunca como 0.
+        """
+        columns = self.tabs[tab]["columns"]
+        existing = self._values(f"'{tab}'!A2:{_col(len(columns))}")
         merged: dict[str, list] = {}
         for raw in existing:
             raw = list(raw) + [""] * (len(columns) - len(raw))
             if str(raw[0]).strip():
                 merged[str(raw[0]).strip().casefold()] = raw
         for new in rows:
-            merged[new["nombre"].casefold()] = [new.get(c, "") for c in columns]
+            merged[new["nombre"].casefold()] = [("" if new.get(c) is None else new.get(c)) for c in columns]
         out = list(merged.values())
         self.svc.spreadsheets().values().clear(
-            spreadsheetId=self.id, range=f"'Comparativa'!A2:{_col(len(columns))}", body={}).execute()
+            spreadsheetId=self.id, range=f"'{tab}'!A2:{_col(len(columns))}", body={}).execute()
         if out:
             self.svc.spreadsheets().values().update(
-                spreadsheetId=self.id, range="'Comparativa'!A2", valueInputOption="RAW",
+                spreadsheetId=self.id, range=f"'{tab}'!A2", valueInputOption="RAW",
                 body={"values": out}).execute()

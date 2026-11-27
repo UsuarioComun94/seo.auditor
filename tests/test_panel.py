@@ -79,7 +79,7 @@ def test_panel_renames_first_sheet_and_upserts_by_name():
     svc = MemSheets({"P": {"SEO Auditor – Panel": [HEADER, row()]}})
     panel = SheetsPanel(svc, "P", SCHEMA)
     panel.ensure_tabs()
-    assert set(svc.books["P"]) == {"Clientes", "Comparativa"}
+    assert set(svc.books["P"]) == {"Clientes", "Comparativa", "Benchmark"}
     assert len(panel.read_clients()) == 1
     r = lambda n, p: {"nombre": n, "dominio": "d", "modo": "own", "puntaje": p}
     panel.upsert_comparativa([r("A", 50), r("B", 60)])
@@ -181,3 +181,47 @@ def test_ssrf_blocked_site_is_skipped(panel_env, tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "is_public_host", lambda h: False)
     cli.main(["--panel", "--panel-id", "P", "--output-dir", str(tmp_path)])
     assert "Crawl" not in panel_env.books["S1"] or len(panel_env.books["S1"].get("Crawl", [])) == 0
+
+
+# ---------- Benchmark ----------
+def _bench_result():
+    from seo_auditor.models import CrawlResult, PageRecord
+    r = CrawlResult(name="c", domain="https://x.com/", mode="competitor", robots_status=200,
+                    sitemap_urls=["https://x.com/a"])
+    r.pages["https://x.com/a"] = PageRecord(url="https://x.com/a", status=200, is_html=True, title="t",
+                                            meta_description="d", h1_count=1, canonical="https://x.com/a",
+                                            in_sitemap=True, response_ms=100, depth=1, links=["l1", "l2"],
+                                            images=[{"src": "i", "has_alt": True}, {"src": "j", "has_alt": False}])
+    r.pages["https://x.com/b"] = PageRecord(url="https://x.com/b", status=200, is_html=True, h1_count=2,
+                                            response_ms=300, depth=2)
+    r.pages["https://x.com/c"] = PageRecord(url="https://x.com/c", status=404, response_ms=50)
+    return r
+
+
+def test_benchmark_percentages_and_unmeasurable_is_none():
+    from seo_auditor.benchmark import METRICS, compute_benchmark
+    b = compute_benchmark(_bench_result())
+    assert set(b) == set(METRICS)
+    assert (b["paginas_html"], b["pct_title"], b["pct_h1_unico"]) == (2, 50.0, 50.0)
+    assert b["pct_imagenes_con_alt"] == 50.0 and b["pct_en_sitemap"] == 50.0
+    assert b["pct_errores_4xx_5xx"] == 33.3 and b["tiene_robots"] and b["ms_mediana"] == 100
+    assert b["pct_schema_jsonld"] == 0.0            # medible y es 0
+    from seo_auditor.models import CrawlResult
+    empty = compute_benchmark(CrawlResult(name="e", domain="https://e.com/", mode="own"))
+    assert empty["pct_title"] is None and empty["ms_mediana"] is None   # no medible != 0
+
+
+def test_benchmark_none_becomes_empty_cell_and_schema_matches():
+    svc = MemSheets({"P": {"Clientes": [HEADER], "Benchmark": [], "Comparativa": []}})
+    panel = SheetsPanel(svc, "P", SCHEMA)
+    cols = next(t["columns"] for t in SCHEMA["panel"]["tabs"] if t["name"] == "Benchmark")
+    panel.upsert_benchmark([{"nombre": "A", "modo": "own", "pct_title": None, "paginas_html": 0}])
+    r = svc.books["P"]["Benchmark"][1]   # la fila 1 queda reservada al encabezado
+    assert len(r) == len(cols) and r[cols.index("pct_title")] == "" and r[cols.index("paginas_html")] == 0
+
+
+def test_panel_run_fills_benchmark(panel_env, tmp_path, capsys):
+    cli.main(["--panel", "--panel-id", "P", "--site", "Uno", "--output-dir", str(tmp_path)])
+    capsys.readouterr()
+    rows = panel_env.books["P"]["Benchmark"]
+    assert [r[0] for r in rows[1:]] == ["Uno"] and rows[1][1] == "own"
