@@ -212,3 +212,69 @@ rules:
     modes: [own, client, competitor]
     phase: 5
     description: Conjunto de páginas casi idénticas que difieren solo en una variable (ciudad, keyword).
+
+  # ---------- Rendimiento (PageSpeed Insights / CrUX) y Search Console ----------
+  - id: PERF-001
+    name: lcp_poor
+    category: performance
+    severity: high
+    hat: white
+    modes: [own, client, competitor]
+    phase: 4
+    description: "LCP en rango malo (más de 4 s) en laboratorio móvil o en datos de campo p75."
+  - id: PERF-002
+    name: cls_poor
+    category: performance
+    severity: medium
+    hat: white
+    modes: [own, client, competitor]
+    phase: 4
+    description: "CLS en rango malo (más de 0,25): el contenido se desplaza mientras carga."
+  - id: PERF-003
+    name: interactivity_poor
+    category: performance
+    severity: high
+    hat: white
+    modes: [own, client, competitor]
+    phase: 4
+    description: "INP de campo mayor a 500 ms o TBT de laboratorio mayor a 600 ms: la página responde tarde."
+  - id: PERF-004
+    name: perf_score_low
+    category: performance
+    severity: medium
+    hat: white
+    modes: [own, client, competitor]
+    phase: 4
+    description: "Puntaje Lighthouse de rendimiento móvil menor a 50."
+  - id: PERF-005
+    name: ttfb_slow
+    category: performance
+    severity: medium
+    hat: white
+    modes: [own, client, competitor]
+    phase: 4
+    description: "Respuesta del servidor (TTFB) mayor a 1,8 s."
+  - id: GSC-001
+    name: no_impressions
+    category: search_console
+    severity: low
+    hat: white
+    modes: [own, client]
+    phase: 4
+    description: "Página indexable sin impresiones en 28 días (la propiedad sí tiene tráfico)."
+  - id: GSC-002
+    name: low_ctr_top_position
+    category: search_console
+    severity: medium
+    hat: white
+    modes: [own, client]
+    phase: 4
+    description: "Muchas impresiones en posiciones altas con CTR muy bajo: revisar title y meta description."
+  - id: GSC-003
+    name: known_by_google_not_crawled
+    category: search_console
+    severity: medium
+    hat: white
+    modes: [own, client]
+    phase: 4
+    description: "URL con impresiones en Google que el crawl no encontró: huérfana, mal enlazada o inexistente."

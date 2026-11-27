@@ -44,6 +44,23 @@ def build_services(credentials_json: str | None = None):
     return sheets, drive, info.get("client_email", "")
 
 
+def build_gsc_service(credentials_json: str | None = None):
+    """Cliente de Search Console (solo lectura) con el mismo service account."""
+    raw = credentials_json or os.environ.get(CREDENTIALS_ENV, "")
+    if not raw.strip():
+        raise PublishError(f"falta la variable de entorno {CREDENTIALS_ENV} (GitHub Secret)")
+    try:
+        info = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise PublishError(f"{CREDENTIALS_ENV} no es un JSON válido") from exc
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+
+    creds = service_account.Credentials.from_service_account_info(
+        info, scopes=["https://www.googleapis.com/auth/webmasters.readonly"])
+    return build("searchconsole", "v1", credentials=creds, cache_discovery=False)
+
+
 class SheetsPublisher:
     def __init__(self, sheets_service, spreadsheet_id: str, schema: dict):
         self.svc = sheets_service

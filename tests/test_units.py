@@ -142,7 +142,7 @@ def test_publish_creates_missing_tabs_and_renames_csv_sheet_to_config():
 
 
 def test_publish_is_idempotent_on_tabs():
-    svc = FakeSheets(["Config", "Resumen", "Issues", "Historico", "Riesgo", "Crawl"])
+    svc = FakeSheets(["Config", "Resumen", "Issues", "Historico", "Riesgo", "Crawl", "Rendimiento", "Search Console"])
     SheetsPublisher(svc, "SID", load_schema()).ensure_tabs()
     assert not any("addSheet" in r for c in svc.calls if c[0] == "batchUpdate" for r in c[1]["requests"])
 

@@ -103,6 +103,42 @@
         "response_ms",
         "x_robots_tag"
       ]
+    },
+    {
+      "name": "Rendimiento",
+      "write_mode": "append",
+      "columns": [
+        "run_id",
+        "fecha_utc",
+        "url",
+        "dispositivo",
+        "puntaje_lab",
+        "lcp_ms",
+        "cls",
+        "tbt_ms",
+        "fcp_ms",
+        "ttfb_ms",
+        "speed_index_ms",
+        "campo_lcp_ms",
+        "campo_inp_ms",
+        "campo_cls",
+        "campo_ttfb_ms",
+        "error"
+      ]
+    },
+    {
+      "name": "Search Console",
+      "write_mode": "replace",
+      "columns": [
+        "tipo",
+        "clave",
+        "clics",
+        "impresiones",
+        "ctr",
+        "posicion",
+        "en_crawl",
+        "periodo"
+      ]
     }
   ],
   "severity_weights": {
@@ -130,6 +166,8 @@
           "render_js",
           "comparar_googlebot",
           "robots_url",
+          "search_console",
+          "pagespeed",
           "spreadsheet_id",
           "activo",
           "notas"
@@ -178,7 +216,15 @@
           "pct_errores_4xx_5xx",
           "tiene_robots",
           "tiene_sitemap",
-          "truncado"
+          "truncado",
+          "perf_puntaje_movil",
+          "lcp_ms_lab",
+          "cls_lab",
+          "tbt_ms_lab",
+          "ttfb_ms_lab",
+          "lcp_ms_campo",
+          "inp_ms_campo",
+          "cls_campo"
         ]
       }
     ]

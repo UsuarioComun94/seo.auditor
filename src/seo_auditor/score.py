@@ -29,8 +29,10 @@ ALL_MODES = {"own", "client", "competitor"}
 
 
 def comparable_rule_ids(rules: dict) -> set[str]:
-    """Reglas que corren en TODOS los modos: la base para comparar sitios propios con ajenos."""
-    return {r.id for r in rules.values() if set(r.modes) >= ALL_MODES}
+    """Reglas que corren en TODOS los modos: la base para comparar sitios propios con ajenos.
+
+    Rendimiento queda afuera: depende de APIs externas y de cuota, y puede faltar en algunos sitios."""
+    return {r.id for r in rules.values() if set(r.modes) >= ALL_MODES and r.category != "performance"}
 
 
 def compute_comparable_score(issues: list[Issue], urls_crawled: int, weights: dict, rules: dict,

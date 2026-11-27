@@ -27,7 +27,9 @@ from .config import ClientConfig, ConfigError, load_config
 from .crawler import CrawlAbort, Crawler
 from .expected import check_expected
 from .fetcher import host_problem, is_public_host
+from .gsc import GscError, fetch as gsc_fetch
 from .models import CrawlResult
+from .pagespeed import CruxClient, PsiClient, measure as measure_performance
 from .platform import load_platforms, platform_label
 from .report import build_tabs, count_by_severity, load_schema, new_run_id, write_local
 from .rules import load_rules
@@ -49,6 +51,18 @@ def schema_idx(schema: dict, tab: str, column: str) -> int:
     return next(t["columns"].index(column) for t in schema["tabs"] if t["name"] == tab)
 
 
+def build_perf_clients() -> tuple:
+    """(PSI, CrUX). La clave (opcional) viene de PSI_API_KEY; sin clave no hay datos de campo."""
+    key = os.environ.get("PSI_API_KEY", "").strip()
+    mask(key)
+    return PsiClient(key), (CruxClient(key) if key else None)
+
+
+def build_gsc_service():
+    from .sheets import build_gsc_service as _build
+    return _build()
+
+
 @dataclass
 class Context:
     rules: dict
@@ -56,7 +70,9 @@ class Context:
     platforms: dict
     output_dir: str
     quiet: bool
+    pagespeed: bool = False          # el modo --panel lo activa; con --config, --pagespeed
     _services: tuple | None = None
+    _perf: tuple | None = None
 
     def services(self):
         """Clientes de Sheets y Drive, creados una sola vez."""
@@ -99,6 +115,24 @@ def audit_site(cfg: ClientConfig, ctx: Context, *, publish: bool, upload_csv: bo
         print(f"ERROR {pre}crawl abortado: {exc}", file=sys.stderr)
         out.code = 5
         return out
+
+    if ctx.pagespeed and cfg.perf.pagespeed:
+        if ctx._perf is None:
+            ctx._perf = build_perf_clients()
+        measure_performance(result, Scope(cfg.domain).root, ctx._perf[0], ctx._perf[1], cfg.perf.max_pages,
+                            log=(lambda m: None) if ctx.quiet else print)
+        print(f"{pre}Rendimiento: {result.perf_status}")
+    if publish and cfg.search_console and cfg.mode in ("own", "client"):
+        try:
+            result.gsc = gsc_fetch(build_gsc_service(), cfg.search_console)
+            result.gsc_status = "ok"
+            print(f"{pre}Search Console: {len(result.gsc['pages'])} páginas y {len(result.gsc['queries'])} consultas")
+        except GscError as exc:
+            result.gsc_status = "no_disponible"
+            print(f"AVISO {pre}{exc}; ¿el service account tiene permiso en la propiedad?", file=sys.stderr)
+        except Exception as exc:  # noqa: BLE001 - nunca frena el resto de la auditoría
+            result.gsc_status = "no_disponible"
+            print(f"AVISO {pre}Search Console no disponible: {type(exc).__name__}", file=sys.stderr)
 
     weights = ctx.schema.get("severity_weights", {})
     scale = ctx.schema.get("score_scale", DEFAULT_SCALE)
@@ -193,6 +227,7 @@ def run_panel(args, ctx: Context) -> int:
     for e in entries:
         mask(e.name)
         if e.cfg:
+            mask(e.cfg.search_console)
             mask(e.cfg.name, e.cfg.domain, urlsplit(e.cfg.domain).hostname, e.cfg.sheets.spreadsheet_id,
                  e.cfg.sheets.drive_folder_id)
 
@@ -251,12 +286,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", default="output", help="Dónde guardar los CSV (por defecto: output/)")
     parser.add_argument("--expected", help="YAML de issues esperados (fixture): falla si falta alguno")
     parser.add_argument("--publish", action="store_true", help="Publicar a Google Sheets y Drive (con --config)")
+    parser.add_argument("--pagespeed", action="store_true", help="Con --config: medir rendimiento (PageSpeed/CrUX)")
     parser.add_argument("--quiet", action="store_true", help="No imprimir cada URL rastreada")
     parser.add_argument("--version", action="version", version=__version__)
     args = parser.parse_args(argv)
 
     ctx = Context(rules=load_rules(), schema=load_schema(), platforms=load_platforms(),
-                  output_dir=args.output_dir, quiet=args.quiet or args.panel)
+                  output_dir=args.output_dir, quiet=args.quiet or args.panel,
+                  pagespeed=args.panel or args.pagespeed)
 
     if args.panel:
         return run_panel(args, ctx)

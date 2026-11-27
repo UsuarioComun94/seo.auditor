@@ -88,6 +88,67 @@ def _is_error(rec: PageRecord) -> bool:
     return rec.status == 0 or rec.status >= 400
 
 
+LCP_POOR, CLS_POOR, INP_POOR, TBT_POOR, TTFB_SLOW, SCORE_LOW = 4000, 0.25, 500, 600, 1800, 50
+
+
+def _perf_checks(em: "_Emitter", result: CrawlResult) -> None:
+    for row in result.perf:
+        if row.get("error"):
+            continue
+        url = row["url"]
+        field = row.get("field") or {}
+        lab = {k: row.get(k) for k in ("lcp_ms", "cls", "tbt_ms", "ttfb_ms", "score")}
+
+        def fmt(ms):
+            return f"{ms / 1000:.1f} s"
+        lcp = [f"laboratorio {fmt(lab['lcp_ms'])}"] if (lab["lcp_ms"] or 0) > LCP_POOR else []
+        if (field.get("lcp_ms") or 0) > LCP_POOR:
+            lcp.append(f"campo p75 {fmt(field['lcp_ms'])}")
+        if lcp:
+            em.add("PERF-001", url, "LCP malo: " + ", ".join(lcp) + (" (campo = origen completo)" if len(lcp) > 1 or "campo" in lcp[0] else ""))
+        cls = [f"laboratorio {lab['cls']:.2f}"] if (lab["cls"] or 0) > CLS_POOR else []
+        if (field.get("cls") or 0) > CLS_POOR:
+            cls.append(f"campo p75 {field['cls']:.2f}")
+        if cls:
+            em.add("PERF-002", url, "CLS malo: " + ", ".join(cls))
+        inter = [f"TBT laboratorio {lab['tbt_ms']:.0f} ms"] if (lab["tbt_ms"] or 0) > TBT_POOR else []
+        if (field.get("inp_ms") or 0) > INP_POOR:
+            inter.append(f"INP campo p75 {field['inp_ms']:.0f} ms")
+        if inter:
+            em.add("PERF-003", url, "interactividad mala: " + ", ".join(inter))
+        if lab["score"] is not None and lab["score"] < SCORE_LOW:
+            em.add("PERF-004", url, f"puntaje Lighthouse móvil {lab['score']}/100")
+        ttfb = [f"laboratorio {lab['ttfb_ms']:.0f} ms"] if (lab["ttfb_ms"] or 0) > TTFB_SLOW else []
+        if (field.get("ttfb_ms") or 0) > TTFB_SLOW:
+            ttfb.append(f"campo p75 {field['ttfb_ms']:.0f} ms")
+        if ttfb:
+            em.add("PERF-005", url, "TTFB alto: " + ", ".join(ttfb))
+
+
+def _gsc_checks(em: "_Emitter", result: CrawlResult, pages: dict, scope) -> None:
+    from .gsc import expected_ctr
+    from .urls import canon_key
+
+    gsc_pages = {canon_key(r["key"]): r for r in result.gsc.get("pages", []) if scope is None or scope.contains(r["key"])}
+    total_impr = sum(r["impressions"] for r in gsc_pages.values())
+    crawled = {canon_key(u): p for u, p in pages.items()}
+    window = f"{result.gsc.get('start', '')} a {result.gsc.get('end', '')}"
+    if total_impr >= 500:                 # sin tráfico en la propiedad, "cero impresiones" no dice nada
+        for url, p in pages.items():
+            if p.indexable and not _is_alias(p, pages) and canon_key(url) not in gsc_pages:
+                em.add("GSC-001", url, f"0 impresiones entre {window}")
+    for key, r in gsc_pages.items():
+        exp = expected_ctr(r["position"])
+        if r["impressions"] >= 100 and exp and r["ctr"] < exp / 2:
+            target = crawled.get(key)
+            em.add("GSC-002", target.url if target else r["key"],
+                   f"{r['impressions']} impresiones, posición media {r['position']:.1f}, CTR {r['ctr'] * 100:.1f}% (esperable ≥ {exp * 50:.1f}%)")
+    if not result.truncated:
+        for key, r in gsc_pages.items():
+            if key not in crawled and r["impressions"] >= 5:
+                em.add("GSC-003", r["key"], f"{r['impressions']} impresiones entre {window}; el crawl no la encontró")
+
+
 def run_checks(result: CrawlResult, rules: dict[str, Rule], scope: Scope | None = None) -> list[Issue]:
     scope = scope or Scope(result.domain)
     em = _Emitter(rules, result.mode)
@@ -235,6 +296,11 @@ def run_checks(result: CrawlResult, rules: dict[str, Rule], scope: Scope | None 
         if len(urls) > 1:
             for u in urls:
                 em.add("ONP-002", u, f"title repetido en {len(urls)} URLs")
+
+    # ---------- Rendimiento (fase 4) ----------
+    _perf_checks(em, result)
+    if result.gsc_status == "ok":
+        _gsc_checks(em, result, pages, scope)
 
     # ---------- Señales de riesgo (fase 5): solo detección ----------
     own_host = risk._host(result.domain)

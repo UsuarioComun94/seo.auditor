@@ -118,3 +118,16 @@ Pestaña **Riesgo**; no suman al puntaje. Son señales, no veredictos: revisalas
 | RSK-005 | Páginas puerta (doorway) | ≥ 5 páginas del mismo directorio con ≥ 85% de texto idéntico |
 
 Limitaciones: RSK-001/002 ven CSS en línea y el atributo `hidden`, no hojas de estilo externas; RSK-004 usa una lista corta de patrones, no una base de reputación de dominios.
+
+## Rendimiento y Search Console (fase 4, todo gratis)
+
+**PageSpeed Insights + CrUX** (cualquier modo; en `--panel` se activa solo, con `--config` usá `--pagespeed`; en el Panel, `pagespeed = FALSE` lo apaga):
+- Laboratorio (Lighthouse móvil simulado) de la home y las 4 páginas más enlazadas → pestaña **Rendimiento** (un historial por corrida) y columnas del **Benchmark**.
+- Campo (usuarios reales de Chrome, p75 del origen) vía API de CrUX: requiere la clave `PSI_API_KEY`. Sin clave se mide solo laboratorio, y si el sitio tiene poco tráfico Chrome no tiene datos.
+- Reglas `PERF-001..005` (LCP > 4 s, CLS > 0,25, INP > 500 ms / TBT > 600 ms, puntaje < 50, TTFB > 1,8 s). No entran al puntaje comparable (dependen de APIs externas).
+- Si PageSpeed no responde, los issues `PERF-*` anteriores se conservan como recurrentes: nunca se marcan "resueltos" por no haber podido medir.
+
+**Search Console** (solo `own`/`client`; columna `search_console` del Panel con `sc-domain:ejemplo.com` o la URL de la propiedad): hay que agregar el mail del service account como usuario de la propiedad.
+- Pestaña **Search Console**: páginas (top 5000) y consultas (top 1000) de los últimos 28 días, y si cada página está en el crawl.
+- `GSC-001` indexable sin impresiones · `GSC-002` muchas impresiones en top 10 con CTR muy bajo · `GSC-003` URL que Google conoce y el crawl no encontró (huérfana, mal enlazada o inexistente).
+- Si la API falla, la pestaña no se pisa y el resto de la auditoría sigue.

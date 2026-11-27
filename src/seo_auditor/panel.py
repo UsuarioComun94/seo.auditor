@@ -93,6 +93,10 @@ def parse_clients(header: list, rows: list[list]) -> list[SiteEntry]:
             "authorized": _truthy(row.get("autorizado", "")),
             "crawl": crawl,
             "sheets": {"spreadsheet_id": str(row.get("spreadsheet_id", "")).strip()},
+            "search_console": str(row.get("search_console", "")).strip(),
+            # pagespeed: vacío = activado; FALSE/no/0 lo apaga
+            "performance": {"pagespeed": str(row.get("pagespeed", "")).strip() == ""
+                            or _truthy(row.get("pagespeed", ""))},
         }
         try:
             entry.cfg = parse_config(raw_cfg)

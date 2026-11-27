@@ -70,6 +70,11 @@ class CrawlResult:
     truncated: bool = False
     platform: str = ""                   # "" = no detectada
     notes: list[str] = field(default_factory=list)
+    # Fase 4. status: "" = no se intentó | ok | parcial | no_disponible
+    perf: list[dict] = field(default_factory=list)
+    perf_status: str = ""
+    gsc: dict = field(default_factory=dict)
+    gsc_status: str = ""
 
 
 @dataclass

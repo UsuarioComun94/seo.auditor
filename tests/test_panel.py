@@ -142,6 +142,7 @@ def panel_env(monkeypatch, fixture_server):
     })
     monkeypatch.setattr(sheets_mod, "build_services", lambda *a, **k: (svc, None, "sa@proyecto.iam"))
     monkeypatch.setattr(cli, "is_public_host", lambda h: True)   # el servidor local es loopback
+    monkeypatch.setattr(cli, "build_perf_clients", lambda: (None, None))   # sin red en los tests
     monkeypatch.setenv("GITHUB_ACTIONS", "true")
     return svc
 

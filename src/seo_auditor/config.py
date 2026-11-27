@@ -47,6 +47,12 @@ class Thresholds:
 
 
 @dataclass
+class PerfConfig:
+    pagespeed: bool = True       # PageSpeed Insights + CrUX (solo cuando el modo de ejecución lo habilita)
+    max_pages: int = 5
+
+
+@dataclass
 class SheetsConfig:
     spreadsheet_id: str = ""
     drive_folder_id: str = ""
@@ -61,6 +67,8 @@ class ClientConfig:
     crawl: CrawlConfig = field(default_factory=CrawlConfig)
     thresholds: Thresholds = field(default_factory=Thresholds)
     sheets: SheetsConfig = field(default_factory=SheetsConfig)
+    perf: PerfConfig = field(default_factory=PerfConfig)
+    search_console: str = ""      # propiedad de Search Console; solo own/client
 
 
 def _as_dict(value: Any) -> dict:
@@ -149,6 +157,16 @@ def parse_config(raw: Any) -> ClientConfig:
         drive_folder_id=str(sheets_raw.get("drive_folder_id", "") or ""),
     )
 
+    perf_raw = _as_dict(raw.get("performance"))
+    perf = PerfConfig(pagespeed=perf_raw.get("pagespeed", True), max_pages=perf_raw.get("max_pages", 5))
+    if not isinstance(perf.pagespeed, bool):
+        errors.append("performance.pagespeed debe ser true o false")
+    if isinstance(perf.max_pages, bool) or not isinstance(perf.max_pages, int) or not 1 <= perf.max_pages <= 20:
+        errors.append("performance.max_pages debe ser un entero entre 1 y 20")
+    search_console = str(raw.get("search_console", "") or "").strip()
+    if search_console and mode == "competitor":
+        errors.append("competitor: Search Console solo existe para sitios propios o con acceso del cliente")
+
     if errors:
         raise ConfigError(errors)
 
@@ -160,6 +178,8 @@ def parse_config(raw: Any) -> ClientConfig:
         crawl=crawl,
         thresholds=thresholds,
         sheets=sheets,
+        perf=perf,
+        search_console=search_console,
     )
 
 

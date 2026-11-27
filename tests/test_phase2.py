@@ -115,7 +115,7 @@ def _result(truncated=False, platform="", finished="t"):
 def test_truncated_crawl_never_marks_issues_as_resolved():
     prev = parse_previous([_prev_row("ONP-001", "https://x.com/b")], [], BASE, ICOLS, HCOLS)
     tabs = build_tabs(_result(truncated=True), [], "R2", previous=prev)
-    assert tabs["Issues"] == []
+    assert [r[ICOLS.index("estado")] for r in tabs["Issues"]] == ["recurrente"]   # se conserva, no se da por resuelto
     tabs = build_tabs(_result(truncated=False), [], "R2", previous=prev)
     assert [r[ICOLS.index("estado")] for r in tabs["Issues"]] == ["resuelto"]
 

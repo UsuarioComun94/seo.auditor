@@ -15,6 +15,7 @@ METRICS = (
     "pct_imagenes_con_alt", "pct_indexables", "pct_en_sitemap", "pct_con_hreflang",
     "profundidad_media", "profundidad_max", "ms_mediana", "ms_p90", "enlaces_internos_medios",
     "pct_errores_4xx_5xx", "tiene_robots", "tiene_sitemap", "truncado",
+    "perf_puntaje_movil", "lcp_ms_lab", "cls_lab", "tbt_ms_lab", "ttfb_ms_lab", "lcp_ms_campo", "inp_ms_campo", "cls_campo",
 )
 
 
@@ -31,7 +32,17 @@ def compute_benchmark(result: CrawlResult) -> dict:
     times = sorted(p.response_ms for p in pages if p.status and p.response_ms)
     p90 = times[min(len(times) - 1, int(0.9 * len(times)))] if times else None
     errors = sum(1 for p in pages if p.status >= 400 or p.status == 0)
+    home = next((r for r in result.perf if not r.get("error")), None)      # la home: primera medición
+    field = (home or {}).get("field") or {}
+    perf = {
+        "perf_puntaje_movil": (home or {}).get("score"), "lcp_ms_lab": (home or {}).get("lcp_ms"),
+        "cls_lab": (home or {}).get("cls"), "tbt_ms_lab": (home or {}).get("tbt_ms"),
+        "ttfb_ms_lab": (home or {}).get("ttfb_ms"), "lcp_ms_campo": field.get("lcp_ms"),
+        "inp_ms_campo": field.get("inp_ms"), "cls_campo": field.get("cls"),
+    }
+    perf = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in perf.items()}
     return {
+        **perf,
         "paginas_html": n,
         "pct_title": _pct(sum(1 for p in html if p.title), n),
         "pct_meta_desc": _pct(sum(1 for p in html if p.meta_description), n),

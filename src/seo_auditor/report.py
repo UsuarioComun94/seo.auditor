@@ -36,7 +36,7 @@ def count_by_severity(issues: list[Issue]) -> dict[str, int]:
 
 
 def _row(columns: list[str], values: dict) -> list:
-    return [values.get(col, "") for col in columns]
+    return ["" if values.get(col) is None else values.get(col) for col in columns]
 
 
 def _inlink_counts(result: CrawlResult) -> Counter:
@@ -104,14 +104,19 @@ def build_tabs(result: CrawlResult, issues: list[Issue], run_id: str, csv_link: 
         })
         for i, key, estado, first_seen in annotated
     ]
-    # Con crawl truncado faltan URLs: un issue ausente no significa que se haya resuelto.
-    if not result.truncated:
-        current_keys = {key for _, key, _, _ in annotated}
-        for prev in resolved_rows(current_keys, previous):
-            row = dict(prev)
-            row["run_id"] = run_id
+    # Un issue ausente solo significa "resuelto" si se pudo medir: con el crawl truncado faltan URLs, y sin
+    # respuesta de PageSpeed o Search Console faltan sus datos. En esos casos se conserva como recurrente.
+    unmeasured = tuple(p for p, status in (("PERF-", result.perf_status), ("GSC-", result.gsc_status))
+                       if status != "ok")
+    current_keys = {key for _, key, _, _ in annotated}
+    for prev in resolved_rows(current_keys, previous):
+        row = dict(prev)
+        row["run_id"] = run_id
+        if result.truncated or str(row.get("regla_id", "")).startswith(unmeasured):
+            row["estado"] = "recurrente"
+        else:
             row["estado"] = "resuelto"
-            issue_rows.append(_row(cols["Issues"], row))
+        issue_rows.append(_row(cols["Issues"], row))
     issue_rows = issue_rows[:MAX_ISSUE_ROWS_IN_SHEET]
 
     risk_rows = [
@@ -120,13 +125,48 @@ def build_tabs(result: CrawlResult, issues: list[Issue], run_id: str, csv_link: 
         })
         for i in risk[:MAX_ISSUE_ROWS_IN_SHEET]
     ]
-    return {
+    tabs = {
         "Resumen": [_row(cols["Resumen"], summary)],
         "Historico": [_row(cols["Historico"], history)],
         "Issues": issue_rows,
         "Riesgo": risk_rows,
         "Crawl": crawl_rows(result, cols["Crawl"], cap),
     }
+    if "Rendimiento" in cols:
+        tabs["Rendimiento"] = performance_rows(result, cols["Rendimiento"], run_id, when)
+    # Si Search Console no respondió, la pestaña NO se toca (se conservan los datos de la última corrida buena).
+    if "Search Console" in cols and result.gsc_status == "ok":
+        tabs["Search Console"] = gsc_rows(result, cols["Search Console"])
+    return tabs
+
+
+def performance_rows(result: CrawlResult, columns: list[str], run_id: str, when: str) -> list[list]:
+    rows = []
+    for r in result.perf:
+        field = r.get("field") or {}
+        rows.append(_row(columns, {
+            "run_id": run_id, "fecha_utc": when, "url": r["url"], "dispositivo": r.get("strategy", ""),
+            "puntaje_lab": r.get("score"), "lcp_ms": r.get("lcp_ms"), "cls": r.get("cls"), "tbt_ms": r.get("tbt_ms"),
+            "fcp_ms": r.get("fcp_ms"), "ttfb_ms": r.get("ttfb_ms"), "speed_index_ms": r.get("speed_index_ms"),
+            "campo_lcp_ms": field.get("lcp_ms"), "campo_inp_ms": field.get("inp_ms"), "campo_cls": field.get("cls"),
+            "campo_ttfb_ms": field.get("ttfb_ms"), "error": r.get("error", ""),
+        }))
+    return rows
+
+
+def gsc_rows(result: CrawlResult, columns: list[str]) -> list[list]:
+    from .urls import canon_key
+    crawled = {canon_key(u) for u in result.pages}
+    period = f"{result.gsc.get('start', '')} a {result.gsc.get('end', '')}"
+    rows = []
+    for kind, key in (("pagina", "pages"), ("consulta", "queries")):
+        for r in result.gsc.get(key, []):
+            rows.append(_row(columns, {
+                "tipo": kind, "clave": r["key"], "clics": r["clicks"], "impresiones": r["impressions"],
+                "ctr": round(r["ctr"], 4), "posicion": round(r["position"], 1),
+                "en_crawl": (canon_key(r["key"]) in crawled) if kind == "pagina" else "", "periodo": period,
+            }))
+    return rows
 
 
 def _safe(value) -> str:
