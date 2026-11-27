@@ -131,3 +131,34 @@ def test_own_mode_continues_when_robots_is_unreachable():
     cfg = local_config("http://127.0.0.1:9/")
     result = Crawler(cfg, fetcher=Fetcher(cfg.crawl.user_agent, delay_seconds=0, timeout=2)).run()
     assert any("robots.txt no disponible" in n for n in result.notes)
+
+
+def test_sitemap_pointing_to_another_host_is_never_fetched(behavior_server):
+    """robots.txt y los índices de sitemap son controlados por el sitio auditado: no pueden mandar al runner a otro host."""
+    from seo_auditor.crawler import Crawler
+    from conftest import local_config
+    seen = []
+
+    class Spy:
+        requests_made = 0
+        robots_token = "x"
+
+        def __init__(self, *a, **k):
+            pass
+
+        def _wait(self):
+            pass
+
+        def get(self, url, read_body=True, headers=None):
+            from seo_auditor.fetcher import FetchResult
+            seen.append(url)
+            if url.endswith("/robots.txt"):
+                return FetchResult(url=url, status=200, text="Sitemap: http://169.254.169.254/latest/sitemap.xml\n")
+            return FetchResult(url=url, status=404, text="")
+
+    cfg = local_config("http://example.test/", "own")
+    c = Crawler(cfg, fetcher=Spy())
+    c._load_robots()
+    c._read_sitemaps()
+    assert not any("169.254" in u for u in seen)
+    assert any("otro host" in n for n in c.result.notes)

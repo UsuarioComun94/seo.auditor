@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
@@ -35,6 +36,9 @@ from .report import build_tabs, count_by_severity, load_schema, new_run_id, writ
 from .rules import load_rules
 from .score import DEFAULT_SCALE, compute_comparable_score, compute_score
 from .urls import Scope
+
+
+_URL_RE = re.compile(r"https?://\S+")
 
 
 def mask(*values) -> None:
@@ -152,7 +156,8 @@ def audit_site(cfg: ClientConfig, ctx: Context, *, publish: bool, upload_csv: bo
     print(f"{pre}Señales de riesgo (fuera del puntaje): {len(signals)}"
           + (" [" + ", ".join(f"{r}×{sum(1 for i in signals if i.rule_id == r)}" for r in sorted({i.rule_id for i in signals})) + "]" if signals else ""))
     for note in result.notes:
-        print(f"{pre}Nota: {note}")
+        # En Actions (log público) las URLs de las notas se tapan: el host está enmascarado pero el path no.
+        print(f"{pre}Nota: {_URL_RE.sub('<url>', note) if os.environ.get('GITHUB_ACTIONS') == 'true' else note}")
     if upload_csv:
         print(f"{pre}CSV completos en {paths['pages'].parent}")
 

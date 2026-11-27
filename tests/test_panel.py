@@ -236,3 +236,9 @@ def test_comparar_googlebot_is_optional_and_forbidden_for_competitors():
     assert bad.cfg is None and bad.errors
     [none] = parse_clients(HEADER, [row()])               # sin la columna: apagado
     assert none.cfg.crawl.compare_googlebot_ua is False
+
+
+def test_notes_in_public_logs_hide_urls(panel_env, tmp_path, capsys):
+    cli.main(["--panel", "--panel-id", "P", "--output-dir", str(tmp_path)])
+    out = capsys.readouterr().out
+    assert "http://" not in "\n".join(l for l in out.splitlines() if "Nota:" in l)

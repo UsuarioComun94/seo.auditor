@@ -88,6 +88,11 @@ class Crawler:
             if sm in seen:
                 continue
             seen.add(sm)
+            # Un sitio ajeno controla robots.txt y los índices de sitemap: no se sigue a otros hosts
+            # (evita SSRF hacia redes internas y rastreo fuera del dominio).
+            if not self.scope.same_host(sm):
+                self.result.notes.append("sitemap en otro host (ignorado)")
+                continue
             res = self.fetcher.get(sm)
             if res.status != 200 or not res.text:
                 self.result.notes.append(f"sitemap no disponible: {sm} ({res.status or res.error})")
