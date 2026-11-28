@@ -89,4 +89,8 @@ jobs:
       - name: Crear el Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" assets/* --repo "${{ github.repository }}" --generate-notes --title "App de escritorio ${{ github.ref_name }}"
+        run: |
+          TAG="${{ github.ref_name }}"
+          gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1 \
+            || gh release create "$TAG" --repo "${{ github.repository }}" --generate-notes --title "App de escritorio $TAG"
+          gh release upload "$TAG" assets/* --repo "${{ github.repository }}" --clobber
