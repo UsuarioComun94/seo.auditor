@@ -45,6 +45,12 @@ Panel (Drive, privado) ──►  GitHub Actions (cron / manual)  ──►  cra
     Rendimiento, Search Console)
 ```
 
+## App de escritorio (Windows y macOS)
+
+Una ventana simple para lanzar auditorías sin tocar GitHub: escribís el nombre del sitio (o `all`), tocás **Auditar ahora** y ves el estado de las últimas ejecuciones. El rastreo sigue corriendo en GitHub Actions: **la app no guarda claves de Google**, solo un token de GitHub limitado a este repositorio.
+
+Descarga: [Releases](https://github.com/UsuarioComun94/seo.auditor/releases). Guía paso a paso en [`docs/APP.md`](docs/APP.md).
+
 ## Probalo en 2 minutos
 
 ```bash
