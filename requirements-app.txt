@@ -1,0 +1,4 @@
+requests>=2.31
+keyring>=24
+pyinstaller>=6
+certifi
