@@ -1,8 +1,8 @@
-# seo.auditor
+# seo.auditor — Auditorías SEO que corren solas, cuestan $0 y te dicen qué cambió desde la última vez
 
 **Auditor SEO autónomo, multicliente y de costo $0.** Rastrea un sitio, detecta problemas técnicos y on-page, marca señales de riesgo grey/black hat (solo detección) y reporta a Google Sheets. Corre solo en GitHub Actions, sin servidores ni APIs de pago.
 
-> **English:** an autonomous, multi-client, zero-cost SEO auditing engine. It crawls a site, flags technical and on-page issues, detects grey/black-hat *risk signals* (detection only, never execution), measures performance (PageSpeed/CrUX) and Search Console gaps, and writes to Google Sheets. It runs on a GitHub Actions cron with no paid APIs. Competitor mode is enforced in code (robots.txt, polite delay, URL cap, honest user-agent). Docs below are in Spanish; the code, rule catalog and tests are self-explanatory.
+> **English — SEO audits that run themselves, cost $0, and tell you what changed since last time.** An autonomous, multi-client, zero-cost SEO auditing engine. It crawls a site, flags technical and on-page issues, detects grey/black-hat *risk signals* (detection only, never execution), measures performance (PageSpeed/CrUX) and Search Console gaps, and writes to Google Sheets. It runs on a GitHub Actions cron with no paid APIs. Competitor mode is enforced in code (robots.txt, polite delay, URL cap, honest user-agent). Docs below are in Spanish; the code, rule catalog and tests are self-explanatory.
 
 [Ver informe de demo](https://usuariocomun94.github.io/seo.auditor/demo/report.html) · [Caso de estudio](docs/CASE_STUDY.md) · [Guía de uso](docs/USAGE.md)
 
