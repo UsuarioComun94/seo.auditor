@@ -4,6 +4,11 @@ name: Construir la app de escritorio
 # Manual (Run workflow) para probar, o al publicar una etiqueta app-v* para crear un Release con los archivos.
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Para publicar un Release con las descargas, escribí la versión (ej. app-v0.1.0). Vacío = solo armar"
+        required: false
+        default: ""
   push:
     tags: ["app-v*"]
 
@@ -76,7 +81,7 @@ jobs:
           retention-days: 30
 
   release:
-    if: startsWith(github.ref, 'refs/tags/app-v')
+    if: startsWith(github.ref, 'refs/tags/app-v') || github.event.inputs.release_tag != ''
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -89,8 +94,9 @@ jobs:
       - name: Crear el Release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
         run: |
-          TAG="${{ github.ref_name }}"
+          TAG="${RELEASE_TAG:-${{ github.ref_name }}}"
           gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1 \
-            || gh release create "$TAG" --repo "${{ github.repository }}" --generate-notes --title "App de escritorio $TAG"
+            || gh release create "$TAG" --target "${{ github.sha }}" --repo "${{ github.repository }}" --generate-notes --title "App de escritorio $TAG"
           gh release upload "$TAG" assets/* --repo "${{ github.repository }}" --clobber
